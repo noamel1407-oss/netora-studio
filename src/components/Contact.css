@@ -1,0 +1,257 @@
+.contact {
+  padding-block: 3.75rem 3.25rem;
+  background: radial-gradient(ellipse 38% 36% at 18% 38%, rgba(212, 165, 90, 0.045), transparent 64%);
+}
+
+.contact__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-areas:
+    'form visual'
+    'form copy';
+  align-items: start;
+  column-gap: clamp(2rem, 1rem + 4vw, 4.5rem);
+  row-gap: 0.35rem;
+}
+
+.contact__visual {
+  grid-area: visual;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.contact__orb {
+  inline-size: min(13vw, 8rem);
+  min-block-size: min(13vw, 8rem);
+  margin-block-end: 0.35rem;
+  pointer-events: none;
+  background: radial-gradient(circle at 48% 46%, rgba(212, 165, 90, 0.09), transparent 58%);
+}
+
+.contact__copy {
+  grid-area: copy;
+  position: relative;
+  z-index: 5;
+  text-align: start;
+  padding-block-start: 0.25rem;
+}
+
+.contact__title {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--step-h2);
+  line-height: 1.25;
+}
+
+.contact__lede {
+  margin-block-start: 1.15rem;
+  max-inline-size: 36ch;
+  color: var(--text-muted);
+  line-height: 1.85;
+}
+
+.contact__lede strong {
+  font-weight: 800;
+  font-size: 1.15em;
+}
+
+.contact__form {
+  grid-area: form;
+  position: relative;
+  z-index: 5;
+  isolation: isolate;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.contact-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.field {
+  position: relative;
+  margin: 0;
+}
+
+.field__icon {
+  position: absolute;
+  inset-block-start: 0.78rem;
+  inset-inline-start: 0.95rem;
+  color: var(--gold-deep);
+  pointer-events: none;
+  transition: color 0.3s var(--ease-out);
+}
+
+.field__control {
+  inline-size: 100%;
+  padding: 1.28rem 2.7rem 0.48rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(4, 10, 22, 0.96);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  transition:
+    border-color 0.3s var(--ease-out),
+    background-color 0.3s var(--ease-out);
+}
+
+.field__control--area {
+  resize: vertical;
+  min-block-size: 5.75rem;
+  line-height: 1.7;
+}
+
+.field__control:hover {
+  border-color: var(--line-strong);
+}
+
+.field__control:focus {
+  outline: none;
+  border-color: var(--gold);
+  background: rgba(8, 16, 34, 0.96);
+}
+
+.field__control:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+.field:focus-within .field__icon {
+  color: var(--gold);
+}
+
+.field__label {
+  position: absolute;
+  inset-block-start: 0.82rem;
+  inset-inline-start: 2.7rem;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  pointer-events: none;
+  transform-origin: right top;
+  transition:
+    transform 0.22s var(--ease-out),
+    color 0.22s var(--ease-out);
+}
+
+.field__control:focus + .field__label,
+.field__control:not(:placeholder-shown) + .field__label {
+  transform: translateY(-0.62rem) scale(0.76);
+  color: var(--gold-deep);
+}
+
+.field__error {
+  display: block;
+  margin-block-start: 0.35rem;
+  color: #ffa79e;
+  font-size: var(--step-small);
+}
+
+.contact-form__summary {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(255, 138, 128, 0.4);
+  border-radius: 3px;
+  background: rgba(255, 138, 128, 0.08);
+  color: #ffb3ab;
+  font-size: var(--step-small);
+}
+
+.contact-form__summary a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.contact-form__submit {
+  margin-block-start: 0.25rem;
+  inline-size: 100%;
+  padding-block: 0.85rem;
+  gap: 0.85rem;
+  background: rgba(4, 10, 22, 0.72);
+  color: var(--gold-bright);
+}
+
+.contact-form--done {
+  padding: 2.25rem 1.75rem;
+  border: 1px solid var(--gold-deep);
+  border-radius: 3px;
+  background: rgba(212, 165, 90, 0.06);
+  text-align: center;
+}
+
+.contact-form__done-title {
+  font-size: var(--step-h3);
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+
+.contact-form__done-copy {
+  margin-block-start: 0.75rem;
+  color: var(--text-muted);
+  font-size: var(--step-small);
+}
+
+.contact-form__done-copy a {
+  color: var(--gold);
+  text-decoration: underline;
+}
+
+@media (max-width: 860px) {
+  .contact {
+    padding-block: 3rem 2.5rem;
+  }
+
+  .contact__inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'copy'
+      'visual'
+      'form';
+    gap: 1.25rem;
+  }
+
+  .contact__copy {
+    text-align: start;
+  }
+
+  .contact__lede {
+    max-inline-size: none;
+  }
+
+  .contact__visual {
+    justify-content: center;
+  }
+
+  /* Reserves the room the 3D emblem actually occupies, so it never lands on
+     the first field. */
+  .contact__orb {
+    inline-size: min(38vw, 9.5rem);
+    min-block-size: min(38vw, 9.5rem);
+  }
+
+  .contact-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .field__control {
+    min-block-size: 2.85rem;
+    padding-block: 1.05rem 0.4rem;
+    font-size: 1rem;
+  }
+
+  .field__control--area {
+    min-block-size: 6.25rem;
+  }
+
+  .contact-form__submit {
+    min-block-size: 3.2rem;
+  }
+}

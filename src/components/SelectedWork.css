@@ -1,0 +1,97 @@
+.work.section {
+  display: grid;
+  align-items: start;
+  min-block-size: unset;
+  padding-block: 5.2rem 2.8rem;
+  overflow-x: clip;
+  background:
+    radial-gradient(ellipse 48% 45% at 72% 60%, rgba(36, 62, 108, 0.13), transparent 70%),
+    linear-gradient(90deg, transparent 0 45%, rgba(212, 165, 90, 0.025) 70%, transparent 100%);
+}
+
+.work__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 0.9fr);
+  align-items: start;
+  column-gap: clamp(2rem, 4vw, 5.5rem);
+  inline-size: min(1220px, calc(100% - 3.25rem));
+  margin-inline: auto;
+}
+
+.work__copy {
+  position: relative;
+  z-index: 4;
+  order: 2;
+  text-align: start;
+  padding-block-start: 0.1rem;
+  max-inline-size: 25rem;
+}
+
+.work__project {
+  margin-block-start: 0.7rem;
+  font-size: clamp(1.35rem, 0.95rem + 1.55vw, 2.05rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background-image: linear-gradient(180deg, #f3e0b8, #c9963e, #8a5f22);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.work__description {
+  margin-block-start: 1rem;
+  max-inline-size: 28ch;
+  font-size: 0.95rem;
+  line-height: 1.85;
+}
+
+.work__link {
+  margin-block-start: 1.55rem;
+}
+
+.work__showcase {
+  position: relative;
+  z-index: 4;
+  order: 1;
+  min-inline-size: 0;
+  padding-block-start: 1.1rem;
+  padding-block-end: 0.4rem;
+  padding-inline: 0.4rem 0.15rem;
+}
+
+.laptop-motion {
+  transform-origin: 50% 86%;
+  will-change: transform;
+}
+
+@media (max-width: 860px) {
+  .work.section {
+    padding-block: 3rem 1.5rem;
+  }
+
+  .work__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.35rem;
+    inline-size: min(1240px, calc(100% - 2.25rem));
+  }
+
+  .work__copy {
+    order: 1;
+    max-inline-size: none;
+  }
+
+  .work__description {
+    max-inline-size: none;
+  }
+
+  .work__showcase {
+    order: 2;
+    padding-block-start: 0.2rem;
+    padding-block-end: 0.6rem;
+    padding-inline: 0.15rem;
+  }
+
+  .work__link {
+    margin-block-start: 1.15rem;
+  }
+}

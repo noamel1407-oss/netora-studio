@@ -1,0 +1,46 @@
+.netora-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.netora-stage .netora-canvas {
+  position: absolute !important;
+  inset: 0;
+}
+
+/*
+ * Stand-in for the medallion while the GLB downloads: a faint gold ring in the
+ * same spot, so the hero never looks empty or shifts when the model arrives.
+ */
+/* Physical properties on purpose: the medallion sits right of centre in both
+   writing directions, mirroring the 3D hero keyframe. */
+.netora-stage__placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(40vw, 34rem);
+  height: min(40vw, 34rem);
+  translate: -50% -50%;
+  margin-left: 22vw;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 165, 90, 0.28);
+  background: radial-gradient(circle at 42% 38%, rgba(212, 165, 90, 0.18), transparent 62%);
+  box-shadow: 0 0 80px 20px rgba(212, 165, 90, 0.1);
+  opacity: 1;
+  transition: opacity 0.9s var(--ease-out);
+}
+
+.netora-stage__placeholder.is-hidden {
+  opacity: 0;
+}
+
+@media (max-width: 860px) {
+  .netora-stage__placeholder {
+    width: 32vh;
+    height: 32vh;
+    margin-left: 0;
+    margin-top: 10vh;
+  }
+}
