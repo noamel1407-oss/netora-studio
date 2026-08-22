@@ -1,0 +1,120 @@
+.city {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  /* Matches the sky in the artwork, so loading never flashes a wrong colour. */
+  background-color: #b7cde4;
+}
+
+.city__bg {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: center 38%;
+}
+
+/* Quiet painted fallback until public/media/world-city.webp exists. */
+.city--no-image .city__bg {
+  display: none;
+}
+
+.city--no-image {
+  background:
+    radial-gradient(ellipse 60% 46% at 50% 88%, rgba(240, 224, 186, 0.5), transparent 62%),
+    radial-gradient(ellipse 90% 60% at 50% 108%, #efe9da 0%, transparent 58%),
+    linear-gradient(180deg, #8fb2d8 0%, #b7cde4 46%, #dfe5e4 78%, #efe9da 100%);
+}
+
+/* Keeps the headline legible over the sky without dimming the world. */
+.city__tint {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(9, 20, 40, 0.3) 0%, transparent 26%),
+    radial-gradient(ellipse 46% 42% at 76% 40%, rgba(16, 30, 54, 0.28), transparent 70%);
+}
+
+.city__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  block-size: 100%;
+  min-block-size: inherit;
+  padding-block: clamp(5rem, 14vh, 8rem);
+  max-inline-size: var(--shell);
+}
+
+.city__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  font-family: var(--font-display-he);
+  font-size: clamp(2.3rem, 1.4rem + 3.6vw, 4.3rem);
+  font-weight: 500;
+  line-height: 1.18;
+  letter-spacing: 0.005em;
+  color: #fdfbf5;
+  text-shadow: 0 2px 26px rgba(10, 22, 44, 0.55);
+}
+
+.city__line--gold {
+  background: linear-gradient(180deg, #f6dfae 0%, #dcae5e 55%, #a97f34 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 14px rgba(60, 42, 8, 0.35));
+}
+
+.city__lede {
+  margin-block-start: 1.6rem;
+  max-inline-size: 30ch;
+  font-size: clamp(1rem, 0.9rem + 0.5vw, 1.2rem);
+  line-height: 1.9;
+  color: rgba(250, 248, 242, 0.92);
+  text-shadow: 0 1px 16px rgba(10, 22, 44, 0.5);
+}
+
+.city__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-block-start: 2.4rem;
+  padding: 0.85rem 1.9rem;
+  border: 1px solid rgba(220, 174, 94, 0.85);
+  border-radius: 2px;
+  background: rgba(20, 33, 56, 0.32);
+  backdrop-filter: blur(6px);
+  color: #fdf6e6;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition:
+    background-color 0.35s var(--ease-out),
+    border-color 0.35s var(--ease-out);
+}
+
+.city__cta:hover,
+.city__cta:focus-visible {
+  background: rgba(20, 33, 56, 0.5);
+  border-color: #ecc678;
+}
+
+.city__cta svg {
+  color: #e3ba6a;
+}
+
+@media (max-width: 860px) {
+  .city__content {
+    justify-content: flex-end;
+    padding-block-end: clamp(3.5rem, 12vh, 6rem);
+  }
+
+  .city__lede {
+    max-inline-size: 34ch;
+  }
+}

@@ -1,11 +1,8 @@
 import { useEffect } from 'react';
 
-import { Hero } from '../components/Hero';
-import { SelectedWork } from '../components/SelectedWork';
-import { Reviews } from '../components/Reviews';
-import { Contact } from '../components/Contact';
-import { NetoraStage } from '../components/NetoraStage';
-import { GoldenFlow } from '../components/GoldenFlow';
+import { VaultHero } from '../components/VaultHero';
+import { SelectedWorks } from '../components/SelectedWorks';
+import { ContactSection } from '../components/ContactSection';
 import { site } from '../site.config';
 
 export function Home() {
@@ -15,12 +12,9 @@ export function Home() {
 
   return (
     <div className="home" id="top">
-      <NetoraStage />
-      <GoldenFlow />
-      <Hero />
-      <SelectedWork />
-      <Reviews />
-      <Contact />
+      <VaultHero />
+      <SelectedWorks />
+      <ContactSection />
     </div>
   );
 }

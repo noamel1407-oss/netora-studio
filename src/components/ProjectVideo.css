@@ -1,0 +1,144 @@
+.pvideo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #05070d;
+  transition: filter 0.35s var(--ease-out);
+}
+
+.pvideo__thumb,
+.pvideo__media {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.pvideo__thumb {
+  z-index: 1;
+}
+
+.pvideo__media {
+  z-index: 2;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   Typographic cover — stands in while no still exists for the project.
+   -------------------------------------------------------------------------- */
+
+.pvideo__cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  direction: ltr;
+  background:
+    radial-gradient(ellipse 70% 62% at 50% 34%, #101a2e 0%, #080e1c 58%, #04070f 100%);
+}
+
+.pvideo__cover-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2.2vw, 1.7rem);
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: #ecd9ac;
+}
+
+.pvideo__cover-rule {
+  inline-size: 2.4rem;
+  block-size: 1px;
+  background: linear-gradient(90deg, transparent, #c9a45c, transparent);
+}
+
+.pvideo__cover-sub {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(0.7rem, 1.1vw, 0.85rem);
+  letter-spacing: 0.16em;
+  color: rgba(214, 204, 182, 0.75);
+}
+
+/* --------------------------------------------------------------------------
+   Controls
+   -------------------------------------------------------------------------- */
+
+.pvideo__toggle {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: 3;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  inline-size: clamp(3rem, 5.5vw, 4rem);
+  block-size: clamp(3rem, 5.5vw, 4rem);
+  padding: 0 0 0 0.2rem;
+  border: 1px solid rgba(226, 190, 116, 0.9);
+  border-radius: 50%;
+  background: rgba(8, 13, 26, 0.55);
+  backdrop-filter: blur(6px);
+  color: #f0dcae;
+  cursor: pointer;
+  transition:
+    opacity 0.3s var(--ease-out),
+    background-color 0.3s var(--ease-out),
+    scale 0.3s var(--ease-out);
+}
+
+.pvideo__toggle.is-playing {
+  opacity: 0;
+  padding: 0;
+}
+
+.pvideo:hover .pvideo__toggle.is-playing,
+.pvideo__toggle.is-playing:focus-visible {
+  opacity: 1;
+}
+
+.pvideo__toggle:hover,
+.pvideo__toggle:focus-visible {
+  background: rgba(8, 13, 26, 0.78);
+  scale: 1.06;
+}
+
+.pvideo__progress {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 4;
+  block-size: 14px;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.3s var(--ease-out);
+}
+
+.pvideo__progress.is-active,
+.pvideo:hover .pvideo__progress.is-active {
+  opacity: 1;
+}
+
+.pvideo__progress::before {
+  content: '';
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  block-size: 3px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.pvideo__progress-fill {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  block-size: 3px;
+  transform-origin: left;
+  background: linear-gradient(90deg, #caa055, #ecd9ac);
+}

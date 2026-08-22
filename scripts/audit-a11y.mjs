@@ -12,6 +12,7 @@ const axe = readFileSync('node_modules/axe-core/axe.min.js', 'utf8');
 const BASE = 'http://localhost:4173';
 
 const browser = await chromium.launch({
+  executablePath: process.env.PW_CHROMIUM || undefined,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
 
