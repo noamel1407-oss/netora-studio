@@ -29,6 +29,17 @@ const page = await context.newPage();
 const problems = [];
 page.on('pageerror', (e) => problems.push(`PAGEERROR ${e.message}`));
 
+/* Headless Chromium can starve the render pipeline after a programmatic
+   scroll — no frame means no scroll event, so scroll-linked state never
+   updates. Real user scrolling always produces frames; force one here so
+   the audit matches what a person would see. */
+const settleScroll = async (ms = 250) => {
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
+  await page.waitForTimeout(ms);
+};
+
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 
@@ -77,15 +88,15 @@ check('statement fully visible under reduced motion', msgVisible);
 
 // --- light-world header flip ---------------------------------------------
 await page.evaluate(() => document.getElementById('contact')?.scrollIntoView());
-await page.waitForTimeout(600);
+await settleScroll();
 check('header flips to light chrome in the bright world', await page.evaluate(() => document.documentElement.classList.contains('is-light-world')));
 await page.evaluate(() => window.scrollTo(0, 0));
-await page.waitForTimeout(600);
+await settleScroll();
 check('header returns to dark chrome at the vault', await page.evaluate(() => !document.documentElement.classList.contains('is-light-world')));
 
 // --- form ----------------------------------------------------------------
 await page.evaluate(() => document.getElementById('contact')?.scrollIntoView());
-await page.waitForTimeout(400);
+await settleScroll(150);
 await page.locator('.contact-form__submit').click();
 await page.waitForTimeout(300);
 check('empty submit shows an error summary', await page.locator('.contact-form__summary').isVisible());
