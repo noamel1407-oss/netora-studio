@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "encode:vault": "node scripts/encode-vault.mjs",
     "assets:poster": "node scripts/make-poster.mjs",
     "audit:a11y": "node scripts/audit-a11y.mjs",
     "audit:behaviour": "node scripts/audit-behaviour.mjs"
@@ -23,6 +24,7 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "axe-core": "^4.13.0",
+    "ffmpeg-static": "^5.2.0",
     "playwright": "^1.62.1",
     "sharp": "^0.34.5",
     "typescript": "^7.0.2",
