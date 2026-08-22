@@ -26,21 +26,41 @@ Node 20+ is required.
 
 Everything lives in `public/media/` under fixed names — no code changes needed:
 
-| Asset | Path | While it is missing |
+| Asset | Path | Status / fallback |
 | --- | --- | --- |
-| Vault opening video (Higgsfield render) | `public/media/vault-video.mp4` | The poster stands in |
-| Vault poster / first frame | `public/media/vault-poster.webp` | A CSS vault holds the hero |
-| World: city seen through the vault | `public/media/world-city.webp` | Sky-gradient fallback |
-| World: marble terrace behind the laptops | `public/media/world-works.webp` | Sky-gradient fallback |
-| World: arch + pool beside the form | `public/media/world-contact.webp` | Sky-gradient fallback |
-| Watch site still | `public/media/watch-project.jpg` | Typographic cover on the screen |
-| Watch site recording | `public/media/watch-project.mp4` | Play button hidden |
-| Jewellery site still | `public/media/shay-jewellery-poster.jpg` | *(already present)* |
-| Jewellery site recording | `public/media/shay-jewellery.mp4` | Play button hidden |
+| Vault opening video | `public/media/vault-video.mp4` | **in** |
+| Vault poster / first frame | `public/media/vault-poster.webp` | **in** — cut from the video's frame 0 |
+| World: the plaza past the doorway | `public/media/world-city.webp` | **in** |
+| World: marble terrace behind the laptops | `public/media/world-works.webp` | **in** |
+| World: arch + pool beside the form | `public/media/world-contact.webp` | **in** |
+| Jewellery site still | `public/media/shay-jewellery-poster.jpg` | **in** (generated placeholder) |
+| Watch site still | `public/media/watch-project.jpg` | missing → typographic cover |
+| Watch site recording | `public/media/watch-project.mp4` | missing → play button hidden |
+| Jewellery site recording | `public/media/shay-jewellery.mp4` | missing → play button hidden |
 
-An optional WebM encode of the vault video can be wired via `vault.video.webm` in
-`src/site.config.ts`. The vault video should be muted-friendly, H.264, a few MB; the poster
-must match its first frame. Screen recordings: 16:10-ish, 10–25 s, no audio, seamless loop.
+Screen recordings: 16:10-ish, 10–25 s, no audio, seamless loop. A portrait capture is
+letterboxed rather than cropped, but a desktop recording is what fits a laptop screen.
+
+### Replacing the vault render
+
+The vault video is scrubbed by scroll, not played, so it must be all-keyframe — otherwise
+seeking to an arbitrary time means decoding forward from a distant keyframe, which is what
+makes a scrubbed video feel like it is lagging behind the wheel. Do not just drop a new file
+in; run it through:
+
+```bash
+npm run encode:vault -- path/to/render.mp4     # → mp4 + a re-cut poster
+npm run encode:vault -- path/to/render.mp4 --webm   # also a VP9 copy
+```
+
+`world-city.webp` is the other half of that opening and has one hard requirement: **no vault
+framing anywhere in the image.** The vault layer is scaled aside to uncover it, so a doorway
+baked into this picture leaves the reader standing in a doorway for good.
+
+The `--webm` copy is not shipped — all-intra VP9 came out roughly three times the H.264, so
+offering it would hand Chromium users the heavier file. It exists because Playwright's
+bundled Chromium has no H.264 decoder, so it is the only way to exercise the scrubbing in a
+headless browser. Wire it via `vault.video.webm` in `src/site.config.ts` while testing.
 
 Live-site URLs sit in `src/site.config.ts` → `projects[].liveUrl`. A `null` URL simply hides
 the "לצפייה באתר" button (the watch project ships as `null` until its site is up).
@@ -60,18 +80,33 @@ the "לצפייה באתר" button (the watch project ships as `null` until its 
 ## How the journey works
 
 `VaultHero` renders one tall section (`--journey-h`, 380svh) with a sticky full-viewport
-stage. Scroll position scrubs a GSAP timeline (scale / translate / opacity only — all
-GPU-composited): the vault frame grows past the screen edges and dissolves while the city
-settles from a slight zoom, then the statement rises. The vault video itself is **not**
-frame-scrubbed — entering the journey triggers `play()` once (muted), scrolling back above
-the hero rewinds it — so playback stays smooth on every device.
+stage, and scroll position drives everything in it.
+
+The door is scrubbed, not played: scroll progress maps to the video's `currentTime`, so it
+opens as the reader moves down and closes as they move back up. Seeks are coalesced onto
+animation frames and skipped while the decoder is busy, so fast scrolling lands on the
+newest frame instead of queueing a backlog of stale ones. This is why the file has to be
+all-keyframe (see above).
+
+The render ends at the threshold, still framed by the doorway. `world-city.webp` is the same
+street a few paces further in, with no doorway in it — so the last of the travel is the
+frame itself scaling to 3.4 and leaving by every edge, uncovering the plaza. The layer is
+only dropped at 90% of the journey, when almost nothing of it is still on screen: fading a
+frame that still fills the screen is a crossfade, which is the thing this replaces. The
+statement rises after that, with the world already in place.
+
+Everything besides the scrub is `transform`/`opacity`. If the video is missing or a decoder
+refuses to seek, the same timeline runs on the poster instead — the still does the
+travelling itself. `?solo=vault` renders the opening with the rest of the page omitted,
+which is the honest way to judge it: with a bright site underneath, a weak opening still
+reads as "fine, something follows".
 
 Component map:
 
 ```
 Header
 VaultHero            ← owns the sticky stage + scroll timeline + light-world flip
-├─ VaultVideo        ← swappable vault media (mp4/webm/poster + CSS fallback)
+├─ VaultVideo        ← scrub target: seek(progress), mp4/poster + CSS fallback
 └─ CityReveal        ← world backdrop + the statement (the page's <h1>)
 SelectedWorks
 └─ ProjectShowcase   ← per project: tilt scene, platform, caption, live link
@@ -105,6 +140,8 @@ lost. Point `contactEndpoint` at a Formspree/webhook/API URL and the form will `
   pipeline that fed it are gone, and with them the heaviest chunk from the bundle.
 - Only the vault poster is preloaded (`index.html`); every world backdrop and project still
   is `loading="lazy"`.
+- The vault video is the one asset fetched in full up front (`preload="auto"`): scrubbing
+  needs frames on demand, and it is the one thing the opening cannot fake.
 - Project videos use `preload="metadata"` — enough to detect a missing file and show the
   first frame, nothing more until play.
 - All journey motion is `transform`/`opacity`; ScrollTrigger instances are cleaned up via

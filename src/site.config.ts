@@ -24,10 +24,14 @@ export const nav = [
 ];
 
 /* --------------------------------------------------------------------------
-   Vault intro — drop the final Higgsfield render into public/media/ under
-   these exact names and everything picks it up. `webm` is optional; leave it
-   null until (if) a WebM encode exists. The poster doubles as the first frame
-   while the video loads and as the whole hero when it is missing.
+   Vault intro. The mp4 is scrubbed by scroll rather than played, so it has to
+   be encoded all-keyframe — `npm run encode:vault <source>` does that and
+   re-cuts the poster from the result's own first frame. Swapping in a new
+   render means re-running that, not just replacing the file.
+
+   `webm` stays null on purpose: all-intra VP9 came out around three times the
+   H.264, so offering it would hand Chromium users the heavier file. Point it
+   at a copy only to test scrubbing in a browser without an H.264 decoder.
    -------------------------------------------------------------------------- */
 
 export const vault = {
@@ -42,13 +46,18 @@ export const vault = {
 };
 
 /* --------------------------------------------------------------------------
-   World backdrops — the architectural environment behind each scene.
-   Same deal: drop files into public/media/ under these names. Until a file
-   exists the section falls back to a quiet gradient in the same palette.
+   World backdrops — the architectural environment behind each scene. Drop
+   files into public/media/ under these names; until one exists the section
+   falls back to a quiet gradient in the same palette.
    -------------------------------------------------------------------------- */
 
 export const world = {
-  /** Seen through the vault opening, behind the headline. */
+  /**
+   * Where the camera lands once the doorway has passed it — the open plaza,
+   * with no vault framing in the image. It must stay that way: an image that
+   * contains the doorway leaves the reader standing in it, since the layer
+   * above is scaled aside precisely to uncover what is beyond.
+   */
   city: '/media/world-city.webp',
   /** The marble terrace behind the two laptops. */
   works: '/media/world-works.webp',

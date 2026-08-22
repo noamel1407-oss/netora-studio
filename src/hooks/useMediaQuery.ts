@@ -16,8 +16,3 @@ export function useMediaQuery(query: string): boolean {
 
 /** True when the visitor has asked the OS to minimise animation. */
 export const usePrefersReducedMotion = () => useMediaQuery('(prefers-reduced-motion: reduce)');
-
-/** Coarse pointers get no cursor parallax and a lighter scene. */
-export const useIsTouch = () => useMediaQuery('(hover: none), (pointer: coarse)');
-
-export const useIsMobile = () => useMediaQuery('(max-width: 860px)');
