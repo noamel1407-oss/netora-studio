@@ -15,7 +15,10 @@
   block-size: 100%;
   object-fit: cover;
   object-position: 22% 60%;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 10%);
+  /* Deep top fade: the arch surfaces out of the works' ivory haze instead of
+     starting on its own edge. Deeper still on narrow screens, where the
+     cropped artwork reaches the top with more stone and less sky. */
+  mask-image: linear-gradient(180deg, transparent 0%, #000 20%);
 }
 
 .contact-sec--no-image .contact-sec__bg {
@@ -33,8 +36,29 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, #e7e2d4 0%, rgba(231, 226, 212, 0) 16%),
+    linear-gradient(180deg, #e7e2d4 0%, rgba(231, 226, 212, 0.55) 14%, rgba(231, 226, 212, 0) 34%),
     linear-gradient(270deg, rgba(238, 240, 242, 0.42) 0%, transparent 46%);
+}
+
+/* Dusk settles over the water at the very end of the journey: the pool
+   darkens into the same deep navy the footer is made of, so the site closes
+   as nightfall over the world instead of cutting to a bar. */
+.contact-sec::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: clamp(12rem, 32svh, 20rem);
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(4, 17, 38, 0.14) 38%,
+    rgba(4, 17, 38, 0.52) 68%,
+    rgba(4, 17, 38, 0.86) 88%,
+    var(--bg-deep) 100%
+  );
 }
 
 /* LTR grid so "panel right / world left" cannot drift; text restores RTL. */
@@ -292,5 +316,11 @@
 
   .contact-form__submit {
     min-block-size: 3.2rem;
+  }
+}
+
+@media (max-width: 860px) {
+  .contact-sec__bg {
+    mask-image: linear-gradient(180deg, transparent 0%, #000 30%);
   }
 }

@@ -1,7 +1,7 @@
 .footer {
   position: relative;
   z-index: 4;
-  border-block-start: 1px solid var(--line);
+  /* No rule on top — the contact scene's dusk lands exactly on this navy. */
   background: var(--bg-deep);
   padding-block-start: 1.65rem;
 }

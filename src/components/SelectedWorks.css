@@ -42,6 +42,26 @@
   z-index: 2;
 }
 
+/* The terrace floor never just stops: over the last stretch the marble
+   settles into the same ivory the contact scene's own top light opens with,
+   so the arrival reads as walking on, not as a new background. */
+.works::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 27%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(231, 226, 212, 0.4) 52%,
+    rgba(231, 226, 212, 0.78) 78%,
+    #e7e2d4 97%
+  );
+}
+
 .works__title {
   text-align: center;
   font-family: var(--font-display-he);
