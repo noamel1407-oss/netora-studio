@@ -20,6 +20,10 @@ export function ProjectVideo({ project }: { project: Project }) {
   const [progress, setProgress] = useState(0);
   const [videoMissing, setVideoMissing] = useState(false);
   const [thumbMissing, setThumbMissing] = useState(false);
+  /* A recording is only cropped to fill when it is at least as wide as the
+     screen it sits in. A portrait capture (a phone recording) is letterboxed
+     instead, so it reads as a screen inside a screen rather than a crop. */
+  const [fitsWide, setFitsWide] = useState(true);
 
   const thumbnail = project.thumbnail && !thumbMissing ? project.thumbnail : null;
 
@@ -36,6 +40,12 @@ export function ProjectVideo({ project }: { project: Project }) {
     observer.observe(root);
     return () => observer.disconnect();
   }, []);
+
+  const onLoadedMetadata = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    setFitsWide(video.videoWidth / video.videoHeight >= 1.5);
+  };
 
   const toggle = () => {
     const video = videoRef.current;
@@ -73,7 +83,7 @@ export function ProjectVideo({ project }: { project: Project }) {
   };
 
   return (
-    <div className="pvideo" ref={rootRef}>
+    <div className={`pvideo${fitsWide ? '' : ' pvideo--letterbox'}`} ref={rootRef}>
       {/* Typographic cover — the orderly placeholder while no still exists. */}
       <div className="pvideo__cover" aria-hidden="true">
         <span className="pvideo__cover-title">{project.title}</span>
@@ -103,6 +113,7 @@ export function ProjectVideo({ project }: { project: Project }) {
           playsInline
           preload="metadata"
           controls={reducedMotion}
+          onLoadedMetadata={onLoadedMetadata}
           onPlay={onPlay}
           onPause={onPause}
           onTimeUpdate={onTimeUpdate}

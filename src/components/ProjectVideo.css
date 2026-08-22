@@ -24,6 +24,12 @@
   cursor: pointer;
 }
 
+/* A portrait recording keeps its own proportions and sits centred on the
+   screen's own dark ground, rather than being cropped to a thin band. */
+.pvideo--letterbox .pvideo__media {
+  object-fit: contain;
+}
+
 /* --------------------------------------------------------------------------
    Typographic cover — stands in while no still exists for the project.
    -------------------------------------------------------------------------- */

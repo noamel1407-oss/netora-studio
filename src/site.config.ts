@@ -96,7 +96,7 @@ export const projects: Project[] = [
     title: 'SHAY JEWELRY',
     subtitle: 'Timeless Elegance',
     description: 'אתר יוקרתי לחנות תכשיטים — אלגנטיות, חוויה ומכירה באותו מסך.',
-    liveUrl: 'https://shayjewellery.co.il',
+    liveUrl: 'https://www.shaijewelry.site/',
     thumbnail: '/media/shay-jewellery-poster.jpg',
     video: { src: '/media/shay-jewellery.mp4', type: 'video/mp4' },
     videoDescription:
