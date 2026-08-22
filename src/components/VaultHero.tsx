@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -10,23 +10,44 @@ import './VaultHero.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
+/** Scroll progress over which the door itself is opening. */
+const DOOR_FROM = 0.04;
+const DOOR_TO = 0.72;
+/** Where the camera leaves the vault layer behind and the city takes over. */
+const HANDOFF = 0.72;
+
 /**
  * The opening journey: closed vault → scroll → the vault opens → we pass
  * through the doorway into the white city → the studio statement.
  *
- * One tall section with a sticky stage. Scroll position scrubs the
- * choreography (scale / translate / opacity only — all GPU-friendly), while
- * entering the section triggers the vault video itself, so playback stays
- * smooth on every device instead of fighting frame-accurate scrubbing.
+ * The door is not played, it is scrubbed: scroll position maps to the video's
+ * `currentTime`, so it opens as the reader moves down and closes as they move
+ * back up. The render ends at the threshold, still framed by the doorway; the
+ * city layer underneath is the same street a few paces further in, with no
+ * doorway in it at all. The frame then flies past the camera and uncovers it.
+ * That ordering is the whole trick: the reader arrives somewhere, rather than
+ * watching one picture dissolve into another. Everything else is
+ * transform/opacity only.
  *
- * Under reduced motion (or without JS) the same markup renders as two calm,
- * fully readable full-height scenes.
+ * Without the video (not yet dropped in, or a decoder that refuses to seek)
+ * the same timeline still runs on the poster: the frame pushes past the camera
+ * and the city opens up behind it. Under reduced motion (or without JS) the
+ * markup renders as two calm, fully readable full-height scenes.
  */
 export function VaultHero() {
   const rootRef = useRef<HTMLElement>(null);
   const videoRef = useRef<VaultVideoHandle>(null);
   const reducedMotion = usePrefersReducedMotion();
   const animated = !reducedMotion;
+
+  /* Drives which choreography runs; the ref keeps the scrub callback stable. */
+  const [scrubbable, setScrubbable] = useState(false);
+  const scrubbableRef = useRef(false);
+
+  const onReadyChange = useCallback((ready: boolean) => {
+    scrubbableRef.current = ready;
+    setScrubbable(ready);
+  }, []);
 
   /* Scroll choreography. */
   useLayoutEffect(() => {
@@ -40,7 +61,14 @@ export function VaultHero() {
           trigger: root,
           start: 'top top',
           end: 'bottom bottom',
-          scrub: 0.55,
+          // Light smoothing: enough to take the jitter out of a trackpad,
+          // short enough that the door still feels attached to the fingers.
+          scrub: 0.4,
+          onUpdate: ({ progress }) => {
+            if (!scrubbableRef.current) return;
+            const door = (progress - DOOR_FROM) / (DOOR_TO - DOOR_FROM);
+            videoRef.current?.seek(Math.min(Math.max(door, 0), 1));
+          },
         },
       });
 
@@ -51,35 +79,44 @@ export function VaultHero() {
         .fromTo(
           '.journey__city',
           { scale: 1.16, yPercent: 2.5 },
-          { scale: 1, yPercent: 0, duration: 0.48, ease: 'power1.out' },
+          { scale: 1, yPercent: 0, duration: 0.62, ease: 'power1.out' },
           0.22,
-        )
-        // Passing through the doorway: the vault frame grows past the screen…
-        .to('.journey__vault', { scale: 2.3, yPercent: -5, duration: 0.42, ease: 'power2.in' }, 0.16)
-        // …and dissolves once we are inside.
-        .to('.journey__vault', { autoAlpha: 0, duration: 0.2 }, 0.4)
+        );
+
+      if (scrubbableRef.current) {
+        // The render brings the camera to the threshold; the last of the
+        // travel is the doorway itself flying past. The frame scales until it
+        // is off every edge, and only then — with barely any of it left on
+        // screen — does the layer go. Fading a frame that still fills the
+        // screen is the dissolve this is meant to avoid.
+        tl
+          .to(
+            '.journey__vault',
+            { scale: 3.4, yPercent: -6, duration: 0.26, ease: 'power2.in' },
+            HANDOFF - 0.06,
+          )
+          .to('.journey__vault', { autoAlpha: 0, duration: 0.04 }, HANDOFF + 0.18);
+      } else {
+        // No scrubbable render: the still has to do the travelling itself.
+        tl
+          .to('.journey__vault', { scale: 2.3, yPercent: -5, duration: 0.42, ease: 'power2.in' }, 0.16)
+          .to('.journey__vault', { autoAlpha: 0, duration: 0.2 }, 0.4);
+      }
+
+      tl
         // The statement rises with the world already in place.
         .fromTo(
           '.city__content > *',
           { y: 42, autoAlpha: 0 },
           { y: 0, autoAlpha: 1, duration: 0.16, stagger: 0.05, ease: 'power2.out' },
-          0.56,
+          0.82,
         )
         // Hold the finished composition before the section releases.
-        .to({}, { duration: 0.22 }, 0.78);
-
-      // Hybrid playback: the first real scroll into the journey opens the
-      // vault; scrolling back above the hero quietly closes it again.
-      ScrollTrigger.create({
-        trigger: root,
-        start: '2% top',
-        onEnter: () => videoRef.current?.play(),
-        onLeaveBack: () => videoRef.current?.reset(),
-      });
+        .to({}, { duration: 0.04 }, 0.96);
     }, root);
 
     return () => context.revert();
-  }, [animated]);
+  }, [animated, scrubbable]);
 
   /* Flips the fixed header to light chrome once the world turns bright. */
   useLayoutEffect(() => {
@@ -92,8 +129,8 @@ export function VaultHero() {
       let boundary: number;
 
       if (animated) {
-        // Mid-journey the vault has dissolved and the sky owns the screen.
-        boundary = rootTop + rect.height * 0.5;
+        // The world takes the screen as the camera clears the doorway.
+        boundary = rootTop + rect.height * (scrubbable ? HANDOFF : 0.5);
       } else {
         const city = root.querySelector<HTMLElement>('.journey__city');
         boundary = city ? city.getBoundingClientRect().top + window.scrollY - 72 : rootTop;
@@ -120,7 +157,7 @@ export function VaultHero() {
       window.removeEventListener('resize', onScroll);
       document.documentElement.classList.remove('is-light-world');
     };
-  }, [animated]);
+  }, [animated, scrubbable]);
 
   return (
     <section
@@ -137,7 +174,7 @@ export function VaultHero() {
         {/* Vault first in flow (it is the first static scene); in animated
             mode the explicit z-indices stack it above the city anyway. */}
         <div className="journey__vault">
-          <VaultVideo ref={videoRef} animated={animated} />
+          <VaultVideo ref={videoRef} animated={animated} onReadyChange={onReadyChange} />
 
           <div className="journey__cue" aria-hidden="true">
             <span className="journey__mouse">
