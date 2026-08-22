@@ -3,16 +3,14 @@ import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
 import { nav, site, whatsappLink } from '../site.config';
 import { legalPages } from '../content/legal';
-import { useStageAnchor } from '../hooks/useStageAnchor';
 import './Footer.css';
 
 export function Footer({ home }: { home: boolean }) {
   const href = (id: string) => (home ? `#${id}` : `/#${id}`);
   const whatsapp = whatsappLink('שלום, הגעתי מהאתר של נטורה סטודיו ואשמח לפרטים.');
-  const anchor = useStageAnchor('footer');
 
   return (
-    <footer className="footer" id="site-footer" ref={anchor}>
+    <footer className="footer" id="site-footer">
       <div className="shell footer__inner">
         <Link className="footer__brand" to="/" aria-label="NETORA STUDIO — לעמוד הבית">
           <Logo compact />

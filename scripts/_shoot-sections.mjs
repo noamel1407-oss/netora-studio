@@ -5,6 +5,7 @@ const BASE = 'http://127.0.0.1:4173/';
 await mkdir('tmp/shots', { recursive: true });
 
 const browser = await chromium.launch({
+  executablePath: process.env.PW_CHROMIUM || undefined,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
 
@@ -19,13 +20,13 @@ async function shoot(width, height, prefix, wait) {
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(wait);
-  await snap(page, `${prefix}-hero`);
+  await snap(page, `${prefix}-vault`);
+  await page.locator('#about').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await snap(page, `${prefix}-statement`);
   await page.locator('#work').scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await snap(page, `${prefix}-work`);
-  await page.locator('#reviews').scrollIntoViewIfNeeded();
-  await page.waitForTimeout(600);
-  await snap(page, `${prefix}-reviews`);
   await page.locator('#contact').scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await snap(page, `${prefix}-contact`);

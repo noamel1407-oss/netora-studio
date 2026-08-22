@@ -24,6 +24,11 @@
 
   --font-he: 'Heebo', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --font-display-he: 'Frank Ruhl Libre', 'Heebo', serif;
+
+  /* The bright world (city, works, contact). */
+  --ink: #16273f;
+  --ink-soft: #44536b;
 
   --step-hero: clamp(2.05rem, 1.05rem + 2.45vw, 3.25rem);
   --step-h2: clamp(1.85rem, 1.1rem + 3vw, 3.15rem);
@@ -65,7 +70,8 @@ body {
   font-weight: 400;
   line-height: 1.8;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  /* clip, not hidden — hidden would break the vault stage's position: sticky. */
+  overflow-x: clip;
 }
 
 body::before {

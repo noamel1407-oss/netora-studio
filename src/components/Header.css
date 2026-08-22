@@ -206,3 +206,56 @@
     text-align: center;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Light world — once the journey crosses into the city, the fixed chrome
+   flips to bright glass with navy type (.is-light-world lives on <html>).
+   -------------------------------------------------------------------------- */
+
+.is-light-world .header {
+  background: rgba(250, 248, 243, 0.66);
+  backdrop-filter: blur(10px);
+  border-block-end-color: rgba(28, 44, 70, 0.1);
+}
+
+.is-light-world .header__links a {
+  color: var(--ink-soft);
+}
+
+.is-light-world .header__links a:hover,
+.is-light-world .header__links a:focus-visible {
+  color: var(--ink);
+}
+
+.is-light-world .header__links a::after {
+  background: #8a6a2f;
+}
+
+.is-light-world .header__cta {
+  border-color: rgba(138, 106, 47, 0.75);
+  color: #6b4d1b;
+  box-shadow: none;
+}
+
+.is-light-world .header__cta:hover {
+  background: rgba(163, 124, 48, 0.12);
+}
+
+.is-light-world .logo__name {
+  background: linear-gradient(180deg, #a8802f 0%, #8a6a2f 55%, #5d431a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+
+.is-light-world .logo__sub {
+  color: #7c5c1e;
+}
+
+.is-light-world .header__burger {
+  border-color: rgba(28, 44, 70, 0.25);
+}
+
+.is-light-world .header__burger-icon i {
+  background: var(--ink);
+}
