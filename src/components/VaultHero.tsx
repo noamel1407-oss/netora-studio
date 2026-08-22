@@ -22,10 +22,12 @@ const HANDOFF = 0.72;
  *
  * The door is not played, it is scrubbed: scroll position maps to the video's
  * `currentTime`, so it opens as the reader moves down and closes as they move
- * back up. The render's last frame is the city seen through the opening, and
- * the city layer underneath starts on that same framing — so the hand-off at
- * the end is a match cut between two identical images, not a dissolve papering
- * over a jump. Everything else is transform/opacity only.
+ * back up. The render ends at the threshold, still framed by the doorway; the
+ * city layer underneath is the same street a few paces further in, with no
+ * doorway in it at all. The frame then flies past the camera and uncovers it.
+ * That ordering is the whole trick: the reader arrives somewhere, rather than
+ * watching one picture dissolve into another. Everything else is
+ * transform/opacity only.
  *
  * Without the video (not yet dropped in, or a decoder that refuses to seek)
  * the same timeline still runs on the poster: the frame pushes past the camera
@@ -93,7 +95,7 @@ export function VaultHero() {
             { scale: 3.4, yPercent: -6, duration: 0.26, ease: 'power2.in' },
             HANDOFF - 0.06,
           )
-          .to('.journey__vault', { autoAlpha: 0, duration: 0.06 }, HANDOFF + 0.14);
+          .to('.journey__vault', { autoAlpha: 0, duration: 0.04 }, HANDOFF + 0.18);
       } else {
         // No scrubbable render: the still has to do the travelling itself.
         tl
