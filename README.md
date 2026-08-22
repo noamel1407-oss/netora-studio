@@ -101,8 +101,8 @@ lost. Point `contactEndpoint` at a Formspree/webhook/API URL and the form will `
 
 ## Performance notes
 
-- No 3D runtime: V2 dropped three.js entirely (the vault is a video), which removed the
-  heaviest chunk from the bundle.
+- No 3D runtime: the vault is artwork and video, not a scene — three.js and the model
+  pipeline that fed it are gone, and with them the heaviest chunk from the bundle.
 - Only the vault poster is preloaded (`index.html`); every world backdrop and project still
   is `loading="lazy"`.
 - Project videos use `preload="metadata"` — enough to detect a missing file and show the
@@ -135,14 +135,6 @@ verified by hand.
 
 `src/content/legal.ts` marks the privacy policy and terms as `placeholder: true`, which
 renders a visible notice on those pages. Set it to `false` once real wording is in.
-
-## The 3D model pipeline (kept for asset production)
-
-The site no longer renders 3D at runtime, but the Meshy medallion pipeline is kept for
-producing vault/brand renders: `assets-src/netora-original.glb` (git-ignored) →
-`npm run optimize:model` → `public/models/netora*.glb`. See `scripts/optimize-model.mjs`.
-These files are not referenced by any page code and can be deleted once the vault video is
-final.
 
 ## Deployment
 

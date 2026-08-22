@@ -5,7 +5,3 @@ dist
 .vite
 _shots
 tmp/
-
-# Working copy of the 112 MB Meshy export — keep it out of git, back it up
-# separately. `npm run optimize:model` regenerates public/models from it.
-assets-src/
