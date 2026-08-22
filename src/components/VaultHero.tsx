@@ -77,21 +77,23 @@ export function VaultHero() {
         .fromTo(
           '.journey__city',
           { scale: 1.16, yPercent: 2.5 },
-          { scale: 1, yPercent: 0, duration: 0.48, ease: 'power1.out' },
+          { scale: 1, yPercent: 0, duration: 0.62, ease: 'power1.out' },
           0.22,
         );
 
       if (scrubbableRef.current) {
-        // The render already carries the camera through the doorway, so the
-        // layer only needs a last push to cover the seam, then it hands over
-        // on the frame it matches.
+        // The render brings the camera to the threshold; the last of the
+        // travel is the doorway itself flying past. The frame scales until it
+        // is off every edge, and only then — with barely any of it left on
+        // screen — does the layer go. Fading a frame that still fills the
+        // screen is the dissolve this is meant to avoid.
         tl
           .to(
             '.journey__vault',
-            { scale: 1.28, yPercent: -2, duration: 0.16, ease: 'power2.in' },
-            HANDOFF - 0.02,
+            { scale: 3.4, yPercent: -6, duration: 0.26, ease: 'power2.in' },
+            HANDOFF - 0.06,
           )
-          .to('.journey__vault', { autoAlpha: 0, duration: 0.08 }, HANDOFF + 0.04);
+          .to('.journey__vault', { autoAlpha: 0, duration: 0.06 }, HANDOFF + 0.14);
       } else {
         // No scrubbable render: the still has to do the travelling itself.
         tl

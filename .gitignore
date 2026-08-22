@@ -5,3 +5,6 @@ dist
 .vite
 _shots
 tmp/
+
+# Ad-hoc verification scripts (prefixed _) stay local.
+scripts/_*.mjs
