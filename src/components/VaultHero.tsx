@@ -117,23 +117,37 @@ export function VaultHero() {
       }
 
       tl
-        // The statement rises with the world already in place.
+        // The light behind the type arrives just ahead of it, so the words
+        // never land on bare sky.
         .fromTo(
-          '.city__content > *',
-          { y: 42, autoAlpha: 0 },
-          { y: 0, autoAlpha: 1, duration: 0.055, stagger: 0.017, ease: 'power2.out' },
+          '.city__scrim',
+          { autoAlpha: 0 },
+          { autoAlpha: 1, duration: 0.035, ease: 'power1.out' },
+          JOURNEY.statementIn - 0.025,
+        )
+        // The statement rises with the world already in place, and is fully
+        // landed well before anything asks it to leave.
+        .fromTo(
+          '.city__line, .city__lede, .city__cta',
+          { y: 38, autoAlpha: 0 },
+          { y: 0, autoAlpha: 1, duration: 0.042, stagger: 0.013, ease: 'power2.out' },
           JOURNEY.statementIn,
         )
-        // ...and leaves the way anything else the camera passes leaves: it
+        // Nothing between here and statementOut: the statement simply sits
+        // there, composed and readable, while the route goes on drawing itself
+        // underneath. That stretch of stillness is the point of it.
+        //
+        // Then it leaves the way anything else the camera passes leaves: it
         // grows a little and slips off the top of the frame while the world
         // behind it carries on moving. The scene is never faded out.
         .to(
           '.city__content',
-          { yPercent: -14, scale: 1.1, autoAlpha: 0, duration: 0.07, ease: 'power2.in' },
-          JOURNEY.statementOut - 0.06,
+          { yPercent: -13, scale: 1.09, autoAlpha: 0, duration: 0.075, ease: 'power2.in' },
+          JOURNEY.statementOut,
         )
-        // Hold the arrival composition before the section releases.
-        .to({}, { duration: 0.02 }, 0.98);
+        // Keeps the timeline exactly one unit long, so its positions and the
+        // container's scroll progress are the same number.
+        .to({}, { duration: 0.01 }, 0.99);
     }, root);
 
     return () => context.revert();

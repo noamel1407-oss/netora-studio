@@ -30,6 +30,31 @@
     linear-gradient(180deg, #8fb2d8 0%, #b7cde4 46%, #dfe5e4 78%, #efe9da 100%);
 }
 
+/* --------------------------------------------------------------------------
+   The statement's own light.
+
+   The city must not be dimmed to make the words work, so this is local: a
+   directional wash on the side the type sits on (the flex start, which RTL
+   puts on the right), falling away to nothing well before the middle of the
+   frame. The route runs through the lower left and stays untouched.
+   -------------------------------------------------------------------------- */
+.city__scrim {
+  position: absolute;
+  inset-block: -12%;
+  inset-inline-start: -8%;
+  inline-size: 78%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 62% 48% at 78% 44%,
+      rgba(11, 26, 51, 0.42) 0%,
+      rgba(11, 26, 51, 0.22) 44%,
+      transparent 72%
+    ),
+    linear-gradient(to left, rgba(9, 22, 44, 0.3) 0%, rgba(9, 22, 44, 0.1) 38%, transparent 68%);
+}
+
 /* Keeps the headline legible over the sky without dimming the world. */
 .city__tint {
   position: absolute;
@@ -115,6 +140,17 @@
   .city__content {
     justify-content: flex-end;
     padding-block-end: clamp(3.5rem, 12vh, 6rem);
+  }
+
+  /* Narrow frame: the type takes the full width, so the wash follows it down
+     rather than sideways. */
+  .city__scrim {
+    inset-inline-start: -12%;
+    inline-size: 124%;
+    inset-block: 22% -12%;
+    background:
+      radial-gradient(ellipse 74% 52% at 62% 62%, rgba(11, 26, 51, 0.42) 0%, transparent 74%),
+      linear-gradient(to top, rgba(9, 22, 44, 0.34) 0%, rgba(9, 22, 44, 0.12) 42%, transparent 76%);
   }
 
   .city__lede {

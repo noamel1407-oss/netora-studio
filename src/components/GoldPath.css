@@ -9,6 +9,12 @@
   block-size: 100%;
   overflow: visible;
   pointer-events: none;
+  /* Set per frame: the rail's bloom, its body and its filament are held back
+     by different amounts, so it can be quiet under the statement without
+     becoming invisible against the light already painted into the city. */
+  --rail-soft: 0;
+  --rail-body: 0;
+  --rail-core: 0;
 }
 
 .gold--far {
@@ -23,11 +29,13 @@
    tube. Geometry rather than a filter: see the note in GoldPath.tsx. */
 .gold__halo {
   fill: rgba(238, 190, 108, 0.16);
+  opacity: var(--rail-soft);
 }
 
 /* Seats the rail into whatever it crosses. */
 .gold__shade {
   fill: rgba(104, 72, 26, 0.2);
+  opacity: var(--rail-soft);
 }
 
 /* The hot centre of the rail. */
@@ -42,6 +50,7 @@
 /* Two hairlines alongside — the only company the route keeps. */
 .gold__filaments {
   fill: none;
+  opacity: var(--rail-soft);
   stroke: rgba(226, 184, 108, 0.28);
   stroke-width: 0.8;
   stroke-linecap: round;

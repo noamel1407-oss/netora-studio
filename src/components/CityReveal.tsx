@@ -36,8 +36,13 @@ export function CityReveal({ statement = true, dolly = false, children }: Props)
 
   useLayoutEffect(() => {
     const bg = bgRef.current;
-    if (!bg || !dolly) return;
-    bg.style.transformOrigin = `${scene.vp.x}px ${scene.vp.y}px`;
+    if (!bg) return;
+    /* The framing that puts the artwork's own convergence where the scene in
+       front of it converges. On a wide screen this is the artwork's natural
+       crop; a narrow one pans it rather than moving the vanishing point, so
+       the two can never disagree. */
+    bg.style.objectPosition = `${(scene.focus.x * 100).toFixed(2)}% ${(scene.focus.y * 100).toFixed(2)}%`;
+    if (dolly) bg.style.transformOrigin = `${scene.vp.x}px ${scene.vp.y}px`;
   }, [scene, dolly]);
 
   const onScroll = useCallback(
@@ -70,6 +75,10 @@ export function CityReveal({ statement = true, dolly = false, children }: Props)
 
       {statement && (
         <div className="shell city__content">
+          {/* Local, directional, and on the type's own side of the frame: the
+              city stays bright and the route stays visible through it. */}
+          <span className="city__scrim" aria-hidden="true" />
+
           <h1 className="city__title" id="about-title">
             <span className="city__line">אנחנו בונים</span>
             <span className="city__line city__line--gold">אתרים תלת־ממדיים</span>

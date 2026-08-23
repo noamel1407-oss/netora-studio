@@ -1,6 +1,10 @@
 .journey {
   position: relative;
-  background: #02060f;
+  /* Dark for the whole vault, and ivory by the very end. The only place this
+     is ever seen is the strip the sticky stage uncovers as it is scrolled off
+     — and a strip of near-black there is what turns a continuing world into a
+     section boundary. */
+  background: linear-gradient(180deg, #02060f 0%, #02060f 88%, #f0eadd 99%);
   /* The whole journey — door, arrival, statement, and the travel out to the
      first platform — is one scrubbed container, so this is its total length.
      Roughly a third is the vault; the rest is the city continuing. */
@@ -89,29 +93,28 @@
 }
 
 /* --------------------------------------------------------------------------
-   Horizon hand-off. Lives at the very end of the tall scroll container, so
-   during the last stretch of the journey warm evening light rises over the
-   city and the scene dissolves into the exact ivory the works terrace opens
-   with — the seam between the two worlds is crossed inside the atmosphere,
-   not on a line. The faint gold at the centre keeps the path's thread alive
-   across the boundary.
+   Horizon hand-off. Warm evening light gathering at the very end of the
+   journey, over a city that stays visible through it — the container's own
+   background carries the ivory now, so this no longer has to be a wall of
+   cream to hide what is behind the stage. The gold at the centre keeps the
+   route's thread alive across the boundary.
    -------------------------------------------------------------------------- */
 .journey::after {
   content: '';
   position: absolute;
   inset-inline: 0;
   inset-block-end: 0;
-  block-size: 18svh;
+  block-size: 13svh;
   z-index: 3;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 34% 64% at 50% 100%, rgba(212, 164, 88, 0.22), transparent 72%),
+    radial-gradient(ellipse 40% 70% at 50% 100%, rgba(214, 168, 92, 0.26), transparent 74%),
     linear-gradient(
       180deg,
       transparent 0%,
-      rgba(233, 227, 212, 0.18) 52%,
-      rgba(233, 227, 212, 0.72) 80%,
-      #e9e3d4 97%
+      rgba(238, 232, 219, 0.16) 48%,
+      rgba(238, 232, 219, 0.46) 78%,
+      rgba(240, 234, 221, 0.66) 100%
     );
 }
 

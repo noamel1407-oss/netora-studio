@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 
 import { GoldPath } from './GoldPath';
 import { ProjectPlatform } from './ProjectPlatform';
-import { JOURNEY, cameraAt, travelOf } from '../journey/scene';
+import { ARRIVAL_PROGRESS, cameraAt, travelOf } from '../journey/scene';
 import { publishJourney, useJourney } from '../journey/progress';
 import { useScene } from '../journey/useScene';
 import './CityTravel.css';
@@ -25,6 +25,13 @@ type Props = {
  * The vertical part of the move is a tilt rather than a rise — carried on the
  * stage as a plain translate — so the horizon travels with the platform
  * instead of sliding against it.
+ *
+ * The rail sits outside the stage rather than inside it. The platform has to
+ * come out of the city's air somewhere past the statement, and the only way to
+ * do that without flattening its perspective is an opacity on a wrapper — one
+ * the route must not share, because the route is lit long before the platform
+ * is. So the stage carries the world and its emergence, the rail is drawn
+ * either side of it, and the two are stacked around each other.
  */
 export function CityTravel({ still }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -34,11 +41,12 @@ export function CityTravel({ still }: Props) {
 
   /* The scene's own vanishing point, shared with the artwork behind it. */
   useLayoutEffect(() => {
+    const root = rootRef.current;
     const stage = stageRef.current;
-    if (!stage) return;
+    if (!root || !stage) return;
     stage.style.perspectiveOrigin = `${scene.vp.x}px ${scene.vp.y}px`;
-    stage.style.setProperty('--vpx', `${scene.vp.x}px`);
-    stage.style.setProperty('--vpy', `${scene.vp.y}px`);
+    root.style.setProperty('--vpx', `${scene.vp.x}px`);
+    root.style.setProperty('--vpy', `${scene.vp.y}px`);
   }, [scene]);
 
   const onScroll = useCallback(
@@ -50,15 +58,15 @@ export function CityTravel({ still }: Props) {
 
       const camera = cameraAt(travelOf(progress), scene);
 
-      /* The scene comes out of the city's air exactly as the statement clears
-         the frame — after that everything it does is distance, not opacity.
-         (Applied here, outside the 3D context: opacity on the world itself
-         would flatten its perspective.) */
-      root.style.opacity = Math.min(1, camera.t / 0.09).toFixed(3);
+      /* The platform comes out of the city's air as the statement clears the
+         frame — after that everything it does is distance, not opacity.
+         (Applied to the stage, outside the 3D context: opacity on the world
+         itself would flatten its perspective.) */
+      stage.style.opacity = Math.min(1, camera.t / 0.09).toFixed(3);
 
       stage.style.transform = `translate3d(0, ${camera.tiltY.toFixed(2)}px, 0)`;
       world.style.transform = `translate3d(${camera.x.toFixed(2)}px, 0, ${camera.z.toFixed(2)}px)`;
-      stage.style.setProperty('--air', (camera.t * 0.5).toFixed(3));
+      root.style.setProperty('--air', (camera.t * 0.5).toFixed(3));
     },
     [scene],
   );
@@ -68,20 +76,21 @@ export function CityTravel({ still }: Props) {
   /* Without a scrubbed timeline nothing publishes a position, so the scene is
      placed at its arrival once and stays there. */
   useLayoutEffect(() => {
-    if (still) publishJourney(JOURNEY.travelTo);
+    if (still) publishJourney(ARRIVAL_PROGRESS);
   }, [still, scene]);
 
   return (
     <div className="travel" ref={rootRef} aria-hidden="true">
+      <GoldPath scene={scene} />
+
       <div className="travel__stage" ref={stageRef}>
         <div className="travel__world" ref={worldRef}>
           <div className="travel__veil" />
           <ProjectPlatform scene={scene} />
         </div>
-
-        <GoldPath scene={scene} />
-        <div className="travel__air" />
       </div>
+
+      <div className="travel__air" />
     </div>
   );
 }

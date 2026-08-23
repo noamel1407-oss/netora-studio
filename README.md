@@ -91,9 +91,23 @@ between "the hero" and "the work". All of it runs in reverse when scrolled back,
 the route drawing itself back in.
 
 The timing constants are in `src/journey/scene.ts` → `JOURNEY`, as fractions of the
-container's own length: the door scrubs to 0.24, the doorway flies past, the statement
-rises at 0.285 and leaves at 0.36–0.43, and the travel runs 0.375 → 0.955 with the arrival
-held after that.
+container's own length:
+
+| | |
+| --- | --- |
+| 0.014 – 0.24 | the door scrubs open |
+| 0.22 – 0.31 | the doorway flies past the camera |
+| 0.245 → | the route lights up under the city, at about a third of its brightness |
+| 0.278 – 0.352 | the statement rises |
+| 0.352 – 0.425 | it is settled and simply readable, while the route goes on drawing itself |
+| 0.425 – 0.50 | it leaves, and the route takes full prominence |
+| 0.44 → 1.0 | the camera travels: approach, then a hold on the arrival, then on past it |
+
+Three clocks read off that one number, and they are deliberately not the same clock. The
+**route** starts at 0.245 and its leading edge runs far ahead of the camera — by the time
+the statement has been read, the road already reaches the platform. The **camera** starts
+at 0.44, under the statement's departure. The **platform** comes out of the city's air
+between 0.44 and 0.49, once the type has cleared the frame.
 
 ### The door
 
@@ -117,15 +131,22 @@ same formula the browser uses for `perspective`, so an SVG drawn from `project()
 element placed with `translate3d()` land on the same pixel.
 
 - **The vanishing point** is measured off `world-city.webp` — the artwork already contains a
-  gold light trail running away from the camera. `vanishingPoint()` redoes the
+  gold light trail running away from the camera. `framingFor()` redoes the
   `object-fit: cover` maths for the current viewport to find where that convergence lands
   on screen, and the scene's `perspective-origin` and the backdrop's `transform-origin` are
-  both set to it. Everything built on top therefore converges where the painting does.
+  both set to it. A narrow viewport crops the artwork hard enough to push that point off
+  the side of the frame; rather than clamping the point — which would leave the objects
+  converging somewhere the architecture behind them does not — it solves for the
+  `object-position` that pans the *artwork* back into agreement, and returns both. On a
+  desktop frame nothing moves: the natural crop already lands inside the band.
 - **The camera** (`cameraAt`) is a dolly, a lateral truck and a tilt. The dolly is described
-  by how large the platform reads on screen (0.155 → 0.47 of its true size) rather than by
-  a distance, which keeps the growth even under the eye. The truck is whatever brings the
-  platform to the middle of the frame by the time it is reached, so the composition lands
-  the same way on any viewport. The tilt is carried as a plain translate on the stage, so
+  by how large the platform reads on screen rather than by a distance, which keeps the
+  growth even under the eye: 0.155 → 0.47 of its true size by travel 0.80, held there to
+  0.88, and then on to 0.60 — that last stretch is what keeps the world moving as the
+  pinned stage is scrolled off, so the section does not visibly end. The truck takes its
+  lateral position from the rail itself, a way ahead of where the camera has got to and at
+  a gain low enough to sway rather than steer, handing over to the composed arrival framing
+  before the platform is reached. The tilt is carried as a plain translate on the stage, so
   the skyline rides with it instead of sliding against it.
 - **The city artwork** takes the same move at the distance of a skyline: a slow swell to
   ~1.25 and a lateral shift of a dozen pixels. The platform and the route take it from a few

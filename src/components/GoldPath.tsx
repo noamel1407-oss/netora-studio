@@ -6,6 +6,8 @@ import {
   pathFor,
   pathHead,
   project,
+  railIntensity,
+  railOf,
   travelOf,
   type Camera,
   type Projected,
@@ -36,6 +38,11 @@ const EMPTY: Ribbon = { halo: '', shade: '', body: '', core: '', filaments: '' }
  * scrolling back pulls it in again, because the head is a function of position,
  * not an animation that was started.
  *
+ * The light and the camera keep separate clocks. The route lights up under the
+ * statement, at about a third of its brightness, and goes on extending while
+ * the type is still being read — so by the time the camera moves, the reader is
+ * following a road that was already there rather than watching one appear.
+ *
  * Two layers: the stretch beyond the platform is painted under it, the stretch
  * this side of it over the top, which is what lets the route arrive at the
  * architecture rather than float in front of it.
@@ -54,13 +61,20 @@ export function GoldPath({ scene }: Props) {
       if (!far || !near) return;
 
       const camera = cameraAt(travelOf(progress), scene);
-      /* The route ignites over the first breath of the travel rather than
-         snapping on under the departing statement. */
-      const ignition = Math.min(1, camera.t / 0.07).toFixed(3);
-      far.style.opacity = ignition;
-      near.style.opacity = ignition;
 
-      const drawn = visibleRun(samples, camera);
+      /* Present under the statement, dominant once it has gone — but not by
+         dimming the whole rail evenly. The artwork already has a broad smear
+         of light along this route, so a faint wide ribbon simply disappears
+         into it. The bloom is what gets held back; the filament down the
+         middle stays legible, and reads as a drawn line over a painted one. */
+      const intensity = railIntensity(progress);
+      for (const svg of [far, near]) {
+        svg.style.setProperty('--rail-soft', Math.pow(intensity, 1.7).toFixed(3));
+        svg.style.setProperty('--rail-body', intensity.toFixed(3));
+        svg.style.setProperty('--rail-core', Math.pow(intensity, 0.45).toFixed(3));
+      }
+
+      const drawn = visibleRun(samples, camera, pathHead(railOf(progress)));
 
       /* The split plane is the platform itself: everything past it is
          occluded by the marble, everything nearer runs over it. */
@@ -138,10 +152,10 @@ type Point = Projected & { world: Vec3 };
 
 /**
  * The stretch of rail that is both lit and in front of the lens, ordered from
- * the leading edge back towards the camera.
+ * the leading edge back towards the camera. `head` is how far the light has
+ * run, which is not where the camera has got to.
  */
-function visibleRun(samples: Vec3[], camera: Camera): Point[] {
-  const head = pathHead(camera.t);
+function visibleRun(samples: Vec3[], camera: Camera, head: number): Point[] {
   const run: Point[] = [];
 
   for (let i = samples.length - 1; i >= 0; i -= 1) {
