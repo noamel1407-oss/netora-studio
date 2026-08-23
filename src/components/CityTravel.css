@@ -1,0 +1,75 @@
+/* ==========================================================================
+   The travelling half of the journey.
+
+   Physical properties only inside the stage: it is a 3D space shared with the
+   maths in src/journey/scene.ts, and logical properties would mirror it under
+   the RTL document.
+   ========================================================================== */
+
+.travel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.travel__stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  /* Must match PERSPECTIVE in src/journey/scene.ts. */
+  perspective: 1000px;
+  perspective-origin: 50% 50%;
+  transform: translate3d(0, 0, 0);
+  --air: 0;
+}
+
+.travel__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  z-index: 2;
+  transform-style: preserve-3d;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Standing air between the camera and the platform: one soft sheet deep in
+   the scene, so the last stretch of the approach passes through the city's
+   own light rather than through nothing. */
+.travel__veil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  inline-size: 130vw;
+  block-size: 72vh;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(255, 250, 238, 0.5) 0%,
+    rgba(252, 244, 228, 0.22) 46%,
+    rgba(250, 242, 226, 0) 74%
+  );
+}
+
+.travel__veil {
+  transform: translate3d(calc(var(--vpx) - 8vw), calc(var(--vpy) + 8vh), -6400px)
+    translate(-50%, -50%);
+}
+
+/* The warm air the camera is moving through, in front of everything: it
+   gathers as the travel goes on and never becomes a curtain. */
+.travel__air {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  opacity: var(--air);
+  will-change: opacity;
+  background:
+    radial-gradient(ellipse 44% 34% at var(--vpx, 50%) var(--vpy, 50%), rgba(255, 246, 226, 0.34), transparent 68%),
+    linear-gradient(0deg, rgba(255, 248, 232, 0.22) 0%, transparent 34%);
+}

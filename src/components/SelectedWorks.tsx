@@ -1,20 +1,28 @@
 import { useState } from 'react';
 
-import { projects, world } from '../site.config';
+import { journey, projects, world } from '../site.config';
 import { ProjectShowcase } from './ProjectShowcase';
 import './SelectedWorks.css';
 
 /**
- * The heart of the reference: a centered heading over the terrace, then two
- * large laptops — watches on the left, jewellery on the right.
+ * What is left of the terrace once the first project moved into the city.
+ *
+ * The work is now discovered on the journey itself, so this is no longer the
+ * portfolio's front door: no section heading announcing "selected works", just
+ * a quiet line of metadata over the terrace and whatever the route has not
+ * reached yet. The gold path leaves the platform pointing this way — the next
+ * milestone is what turns that direction into an arrival.
  */
 export function SelectedWorks() {
   const [bgMissing, setBgMissing] = useState(false);
+  const remaining = projects.filter((project) => project.id !== journey.projectId);
+
+  if (remaining.length === 0) return null;
 
   return (
     <section
       className={`works${bgMissing ? ' works--no-image' : ''}`}
-      id="work"
+      id="work-archive"
       aria-labelledby="work-title"
     >
       <img
@@ -30,16 +38,11 @@ export function SelectedWorks() {
 
       <div className="shell works__inner">
         <h2 className="works__title reveal" id="work-title">
-          עבודות נבחרות
+          עוד על המסלול
         </h2>
-        <div className="works__rule reveal" aria-hidden="true">
-          <i />
-          <b />
-          <i />
-        </div>
 
         <div className="works__grid">
-          {projects.map((project) => (
+          {remaining.map((project) => (
             <ProjectShowcase key={project.id} project={project} />
           ))}
         </div>

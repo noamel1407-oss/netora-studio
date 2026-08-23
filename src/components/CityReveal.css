@@ -13,6 +13,9 @@
   block-size: 100%;
   object-fit: cover;
   object-position: center 38%;
+  /* Its own layer: the camera moves it every frame, and a 2560px still is not
+     something to re-rasterise on each one. */
+  will-change: transform;
 }
 
 /* Quiet painted fallback until public/media/world-city.webp exists. */

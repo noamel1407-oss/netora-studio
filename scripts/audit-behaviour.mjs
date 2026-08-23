@@ -1,8 +1,8 @@
 /**
  * Smoke-tests the interactive behaviour that the experience depends on:
- * skip link, nav anchors, the two laptop showcases (placeholder fallbacks,
- * live links, play controls), form validation + focus handling, and the
- * light-world header flip.
+ * skip link, nav anchors, the first project's platform in the city, the
+ * laptop showcase still on the terrace (placeholder fallbacks, play controls),
+ * form validation + focus handling, and the light-world header flip.
  *
  * Requires a server on :4173 — `npm run build && npm run preview` first.
  */
@@ -57,9 +57,34 @@ for (const id of ['work', 'about', 'contact']) {
   check(`anchor target #${id} exists`, exists);
 }
 
+// --- the first project, on its platform in the city ----------------------
+// SHAY is no longer a laptop in a grid: it stands on the floating platform
+// the journey arrives at, and its screen is a media slot rather than a
+// baked-in picture. Under reduced motion that arrival is a static scene.
+check('the floating platform renders', (await page.locator('.platform').count()) === 1);
+check('the platform carries a computer', (await page.locator('.platform__monitor').count()) === 1);
+const screen = page.locator('.pscreen');
+check('the computer has a screen surface', (await screen.count()) === 1);
+check('the screen shows its poster while no recording exists', await screen.locator('.pscreen__poster').isVisible());
+check(
+  'the screen clips its media to the monitor',
+  await page.evaluate(() => {
+    const el = document.querySelector('.pscreen');
+    const well = el?.closest('.monitor__well');
+    if (!el || !well) return false;
+    const a = el.getBoundingClientRect();
+    const b = well.getBoundingClientRect();
+    return getComputedStyle(el).overflow === 'hidden' && a.width <= b.width + 1 && a.height <= b.height + 1;
+  }),
+);
+check('the gold route is drawn', await page.evaluate(() => {
+  const d = document.querySelector('.gold--near .gold__body')?.getAttribute('d') ?? '';
+  return d.length > 40;
+}));
+
 // --- showcases -----------------------------------------------------------
 const showcases = await page.locator('.showcase').count();
-check('two project showcases render', showcases === 2, `count=${showcases}`);
+check('the terrace keeps the project the route has not reached', showcases === 1, `count=${showcases}`);
 
 // Watch project: no assets yet → typographic cover, no play button, no live link.
 const watch = page.locator('.showcase', { hasText: 'TIMEMATIC' });
@@ -67,17 +92,6 @@ check('watch cover shows its subtitle', await watch.locator('.pvideo__cover-sub'
 check('watch has no play button while its video is missing', (await watch.locator('.pvideo__toggle').count()) === 0);
 check('watch hides the live link while no URL exists', (await watch.locator('.showcase__live').count()) === 0);
 check('watch shows no broken thumbnail img', (await watch.locator('.pvideo__thumb').count()) === 0);
-
-// Jewellery project: poster exists, live link must be correct.
-const jewelry = page.locator('.showcase', { hasText: 'SHAY JEWELRY' });
-check('jewellery thumbnail renders', await jewelry.locator('.pvideo__thumb').isVisible());
-const live = jewelry.locator('.showcase__live');
-check('jewellery live link renders', (await live.count()) === 1);
-check(
-  'live link opens a new tab safely',
-  (await live.getAttribute('target')) === '_blank' && ((await live.getAttribute('rel')) ?? '').includes('noopener'),
-  `rel=${await live.getAttribute('rel')}`,
-);
 
 // --- reduced motion: everything readable without scroll choreography -----
 const msgVisible = await page.evaluate(() => {

@@ -1,0 +1,267 @@
+/* ==========================================================================
+   The first floating platform.
+
+   Physical properties throughout (`left`, `top`, unprefixed transforms): this
+   subtree is a 3D space, and logical properties would mirror it with the RTL
+   document. Everything is sized from the world units set by the component, so
+   the whole object scales with the viewport without any of its proportions
+   changing.
+   ========================================================================== */
+
+.platform {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  /* Every transform in here is written as world coordinates measured from the
+     anchor, so the origin has to be the anchor and not the middle of whatever
+     box happens to carry the rule — the default 50% 50% turns an out-of-plane
+     rotation into a displacement. */
+  transform-origin: 0 0;
+  --haze: 0.6;
+  --marble: #f7f3e9;
+  --marble-shade: #e2dccd;
+  --gold-inlay: rgba(196, 152, 78, 0.85);
+}
+
+.platform__slab {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-style: preserve-3d;
+  transform-origin: 0 0;
+}
+
+.platform__face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  backface-visibility: hidden;
+  border-radius: calc(var(--pw) * 0.012);
+}
+
+/* The city's air between here and there. Thins as the camera closes in —
+   atmospheric perspective, not a fade-in. */
+.platform__face::after,
+.monitor__body::after,
+.platform__keel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(206, 224, 240, var(--haze));
+}
+
+/* --- top surface ---------------------------------------------------------- */
+
+.platform__face--top {
+  width: var(--pw);
+  height: var(--pd);
+  transform: rotateX(90deg) translate(-50%, -50%);
+  background:
+    radial-gradient(ellipse 46% 38% at 50% 46%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #f4eee0 0%, var(--marble) 46%, #ece4d2 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* Gold inlay following the edge of the surface — the path's own material,
+   turned into architecture. */
+.platform__inlay {
+  position: absolute;
+  inset: 5.5%;
+  border: calc(var(--pw) * 0.0035) solid var(--gold-inlay);
+  border-radius: calc(var(--pw) * 0.01);
+  box-shadow:
+    0 0 calc(var(--pw) * 0.02) rgba(226, 183, 106, 0.45),
+    inset 0 0 calc(var(--pw) * 0.012) rgba(226, 183, 106, 0.3);
+}
+
+/* A groove circling the base of the computer: where the route arrives, it
+   goes around the thing it came for. */
+.platform__ring {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  width: 44%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: calc(var(--pw) * 0.0028) solid rgba(198, 156, 84, 0.7);
+  border-radius: 50%;
+  box-shadow: 0 0 calc(var(--pw) * 0.016) rgba(230, 190, 116, 0.4);
+}
+
+/* Where the computer meets the marble. */
+.platform__contact {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  height: 26%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(74, 82, 96, 0.34), transparent 68%);
+}
+
+/* --- thickness ------------------------------------------------------------ */
+
+.platform__face--front {
+  width: var(--pw);
+  height: var(--pt);
+  transform: translate3d(0, calc(var(--pt) / 2), calc(var(--pd) / 2)) translate(-50%, -50%);
+  background: linear-gradient(180deg, #f6f1e5 0%, #ddd5c2 40%, #b9b1a0 100%);
+  box-shadow: inset 0 calc(var(--pt) * -0.1) calc(var(--pt) * 0.3) rgba(84, 76, 60, 0.16);
+}
+
+/* The gold seam that runs round the slab just under its lip. */
+.platform__face--front::before,
+.platform__face--left::before,
+.platform__face--right::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 26%;
+  height: calc(var(--pt) * 0.055);
+  background: linear-gradient(90deg, transparent, rgba(206, 162, 86, 0.9) 18%, rgba(240, 212, 156, 0.95) 50%, rgba(206, 162, 86, 0.9) 82%, transparent);
+}
+
+.platform__face--left,
+.platform__face--right {
+  width: var(--pd);
+  height: var(--pt);
+  background: linear-gradient(180deg, #ebe5d8 0%, #cec6b4 42%, #a8a190 100%);
+}
+
+.platform__face--left {
+  transform: translate3d(calc(var(--pw) / -2), calc(var(--pt) / 2), 0) rotateY(-90deg)
+    translate(-50%, -50%);
+}
+
+.platform__face--right {
+  transform: translate3d(calc(var(--pw) / 2), calc(var(--pt) / 2), 0) rotateY(90deg)
+    translate(-50%, -50%);
+}
+
+/* --- the plinth underneath ------------------------------------------------ */
+
+.platform__keel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  width: calc(var(--pw) * 0.72);
+  height: calc(var(--pt) * 1.15);
+  transform: translate3d(0, var(--pt), 0) translate(-50%, 0);
+  clip-path: polygon(0 0, 100% 0, 79% 100%, 21% 100%);
+  background: linear-gradient(180deg, #cfc7b4 0%, #b2a996 48%, #8d8677 100%);
+}
+
+.platform__keel--lower {
+  width: calc(var(--pw) * 0.42);
+  height: calc(var(--pt) * 0.85);
+  transform: translate3d(0, calc(var(--pt) * 2.12), 0) translate(-50%, 0);
+  clip-path: polygon(0 0, 100% 0, 62% 100%, 38% 100%);
+  background: linear-gradient(180deg, #b5ad9a 0%, #948c7c 55%, rgba(132, 125, 113, 0) 100%);
+}
+
+/* --- the air it floats in ------------------------------------------------- */
+
+.platform__mist {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  width: calc(var(--pw) * 1.5);
+  height: calc(var(--pt) * 6);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(255, 253, 247, 0.55) 0%,
+    rgba(252, 248, 240, 0.22) 40%,
+    rgba(250, 246, 238, 0) 70%
+  );
+}
+
+/* Sits behind the slab, so the marble parts from the city on light rather
+   than on an outline. */
+.platform__mist--back {
+  transform: translate3d(0, calc(var(--pt) * 1.4), calc(var(--pd) * -0.42)) translate(-50%, -50%);
+}
+
+/* ...and a little of the same light gathered under the plinth. */
+.platform__mist--front {
+  width: calc(var(--pw) * 0.9);
+  height: calc(var(--pt) * 4);
+  opacity: 0.45;
+  transform: translate3d(0, calc(var(--pt) * 3.4), calc(var(--pd) * -0.1)) translate(-50%, -50%);
+}
+
+/* --------------------------------------------------------------------------
+   The computer. A flat panel standing on the marble — which is what a monitor
+   is — with its own base and contact shadow, inside the same 3D space, so it
+   takes the scene's perspective rather than imitating it.
+   -------------------------------------------------------------------------- */
+
+.platform__monitor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  width: var(--mw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate3d(calc(var(--pw) * -0.01), 0, calc(var(--pd) * -0.04))
+    translate(-50%, -100%);
+}
+
+.monitor__body {
+  position: relative;
+  inline-size: 100%;
+  padding: calc(var(--mw) * 0.014);
+  border-radius: calc(var(--mw) * 0.022);
+  background: linear-gradient(178deg, #fbf9f4 0%, #e6e2d9 46%, #c8c3b8 100%);
+  box-shadow:
+    0 0 0 calc(var(--mw) * 0.0016) rgba(255, 255, 255, 0.8),
+    0 calc(var(--mw) * 0.02) calc(var(--mw) * 0.05) rgba(46, 56, 74, 0.28);
+}
+
+.monitor__well {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--mw) * 0.008);
+  background: #05070d;
+  container-type: inline-size;
+}
+
+.monitor__chin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: calc(var(--mw) * 0.062);
+}
+
+.monitor__mark {
+  font-family: var(--font-display);
+  font-size: calc(var(--mw) * 0.036);
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  color: rgba(150, 118, 62, 0.75);
+}
+
+.monitor__neck {
+  inline-size: calc(var(--mw) * 0.085);
+  block-size: calc(var(--mw) * 0.085);
+  background: linear-gradient(90deg, #c5c0b4 0%, #efece4 38%, #d3cec3 72%, #b4afa4 100%);
+}
+
+.monitor__foot {
+  inline-size: calc(var(--mw) * 0.28);
+  block-size: calc(var(--mw) * 0.016);
+  border-radius: calc(var(--mw) * 0.008);
+  background: linear-gradient(180deg, #f1eee6 0%, #cbc6ba 100%);
+  box-shadow: 0 calc(var(--mw) * 0.004) calc(var(--mw) * 0.012) rgba(52, 60, 78, 0.3);
+}

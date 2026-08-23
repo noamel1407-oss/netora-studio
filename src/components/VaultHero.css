@@ -1,7 +1,10 @@
 .journey {
   position: relative;
   background: #02060f;
-  --journey-h: 380svh;
+  /* The whole journey — door, arrival, statement, and the travel out to the
+     first platform — is one scrubbed container, so this is its total length.
+     Roughly a third is the vault; the rest is the city continuing. */
+  --journey-h: 1080svh;
 }
 
 .journey.is-animated {
@@ -26,10 +29,17 @@
    -------------------------------------------------------------------------- */
 
 .journey__vault,
-.journey__city {
+.journey__city,
+.journey__arrival {
   position: relative;
   min-block-size: 100vh;
   min-block-size: 100svh;
+}
+
+/* Reduced motion only: the arrival stands as its own calm scene, so the
+   platform and its screen are still reached rather than skipped. */
+.journey__arrival {
+  overflow: hidden;
 }
 
 .journey__vault {
@@ -61,7 +71,21 @@
 
 .journey__anchor {
   position: absolute;
-  inset-block-start: 52%;
+  inset-block-start: 0;
+}
+
+/* Anchors land on the journey's own positions rather than on its edges: the
+   statement where it is readable, the work where the platform is arrived at. */
+.journey.is-animated .journey__anchor--about {
+  inset-block-start: 31%;
+}
+
+.journey.is-animated .journey__anchor--work {
+  inset-block-start: 88%;
+}
+
+.journey__anchor--work {
+  inset-block-start: 100%;
 }
 
 /* --------------------------------------------------------------------------
@@ -77,7 +101,7 @@
   position: absolute;
   inset-inline: 0;
   inset-block-end: 0;
-  block-size: 34svh;
+  block-size: 18svh;
   z-index: 3;
   pointer-events: none;
   background:
@@ -85,9 +109,9 @@
     linear-gradient(
       180deg,
       transparent 0%,
-      rgba(233, 227, 212, 0.26) 46%,
-      rgba(233, 227, 212, 0.82) 74%,
-      #e9e3d4 96%
+      rgba(233, 227, 212, 0.18) 52%,
+      rgba(233, 227, 212, 0.72) 80%,
+      #e9e3d4 97%
     );
 }
 
@@ -141,7 +165,7 @@
 
 @media (max-width: 860px) {
   .journey {
-    --journey-h: 330svh;
+    --journey-h: 860svh;
   }
 }
 

@@ -1,7 +1,9 @@
 .works {
   position: relative;
   overflow: hidden;
-  padding-block: clamp(4rem, 9vh, 7rem) clamp(4.5rem, 10vh, 8rem);
+  /* The journey hands straight over: no clearing to cross before the first
+     thing on the terrace. */
+  padding-block: clamp(2rem, 5vh, 3.5rem) clamp(4.5rem, 10vh, 8rem);
   /* Horizon colour shared with the city scene, so the worlds read as one. */
   background-color: #c3d5e6;
 }
@@ -14,7 +16,7 @@
   object-fit: cover;
   object-position: center 62%;
   /* Soft top edge blends into whatever the journey leaves on screen. */
-  mask-image: linear-gradient(180deg, transparent 0%, #000 14%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
 }
 
 .works--no-image .works__bg {
@@ -62,40 +64,31 @@
   );
 }
 
+ /* Editorial metadata, not a section heading: the work is introduced by the
+    route it sits on, and this only says the route has not ended. */
 .works__title {
   text-align: center;
-  font-family: var(--font-display-he);
-  font-size: clamp(1.9rem, 1.2rem + 2.6vw, 3.1rem);
+  font-family: var(--font-he);
+  font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--ink);
-  text-shadow: 0 1px 18px rgba(244, 246, 250, 0.55);
+  letter-spacing: 0.24em;
+  color: rgba(38, 56, 82, 0.7);
+  text-shadow: 0 1px 14px rgba(244, 246, 250, 0.6);
 }
 
-/* line · diamond · line — as in the reference. */
-.works__rule {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  margin-block-start: 1rem;
-}
-
-.works__rule i {
-  inline-size: 3.5rem;
-  block-size: 1px;
-  background: linear-gradient(90deg, transparent, rgba(64, 82, 112, 0.55), transparent);
-}
-
-.works__rule b {
-  inline-size: 6px;
-  block-size: 6px;
-  rotate: 45deg;
-  background: #9c7a38;
+.works__title::after {
+  content: '';
+  display: block;
+  inline-size: 1px;
+  block-size: clamp(1.4rem, 3vh, 2.4rem);
+  margin: 0.9rem auto 0;
+  background: linear-gradient(180deg, rgba(160, 126, 60, 0.65), transparent);
 }
 
 /* --------------------------------------------------------------------------
-   The two laptops. LTR grid so "watch" lands on the left like the reference;
-   each showcase restores RTL for its own text.
+   The laptops still on the terrace. LTR grid so the order matches the
+   reference; each showcase restores RTL for its own text. A single one left
+   does not stretch to the full width of the page.
    -------------------------------------------------------------------------- */
 
 .works__grid {
@@ -104,11 +97,21 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: clamp(2.5rem, 6vw, 6rem);
-  margin-block-start: clamp(3rem, 7vh, 5.5rem);
+  margin-block-start: clamp(1.75rem, 4vh, 3rem);
   padding-inline: clamp(0rem, 2vw, 2rem);
 }
 
+.works__grid:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+  max-inline-size: min(58%, 720px);
+  margin-inline: auto;
+}
+
 @media (max-width: 860px) {
+  .works__grid:has(> :only-child) {
+    max-inline-size: none;
+  }
+
   .works__grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 3.25rem;

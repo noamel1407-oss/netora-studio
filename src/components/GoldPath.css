@@ -1,0 +1,48 @@
+/* The rail is drawn in viewport coordinates by the same camera that carries
+   the platform, so it needs no transform of its own — only its place in the
+   stack, either side of the architecture it leads to. */
+.gold {
+  position: absolute;
+  top: 0;
+  left: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.gold--far {
+  z-index: 1;
+}
+
+.gold--near {
+  z-index: 3;
+}
+
+/* One controlled bloom around the rail — metal catching light, not a neon
+   tube. Geometry rather than a filter: see the note in GoldPath.tsx. */
+.gold__halo {
+  fill: rgba(238, 190, 108, 0.16);
+}
+
+/* Seats the rail into whatever it crosses. */
+.gold__shade {
+  fill: rgba(104, 72, 26, 0.2);
+}
+
+/* The hot centre of the rail. */
+.gold__core {
+  fill: none;
+  stroke: rgba(255, 246, 219, 0.7);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Two hairlines alongside — the only company the route keeps. */
+.gold__filaments {
+  fill: none;
+  stroke: rgba(226, 184, 108, 0.28);
+  stroke-width: 0.8;
+  stroke-linecap: round;
+}

@@ -66,6 +66,37 @@ export const world = {
 };
 
 /* --------------------------------------------------------------------------
+   The journey's first project.
+
+   SHAY is no longer introduced by a section heading — it is the thing the gold
+   path leads to, standing on the first floating platform inside the city. The
+   monitor there is built around a media slot, so the finished recording is a
+   path change and nothing else:
+
+     1. drop the file at public/media/shay-jewellery.mp4 (16:10-ish, no audio,
+        seamless loop, 10-25s), or
+     2. point `shayVideoSrc` below at wherever it actually lives.
+
+   Until the file exists the poster stands in on its own; with neither, the
+   screen shows its typographic cover. Nothing else in the scene changes.
+   -------------------------------------------------------------------------- */
+
+export const journey = {
+  /** Which entry in `projects` has moved into the city. */
+  projectId: 'jewelry',
+  title: 'SHAY JEWELRY',
+  subtitle: 'Timeless Elegance',
+  /** The SHAY recording. Set to null to leave the screen on its poster. */
+  shayVideoSrc: '/media/shay-jewellery.mp4' as string | null,
+  shayPoster: '/media/shay-jewellery-poster.jpg' as string | null,
+  shayVideoDescription:
+    'הקלטת מסך של אתר SHAY JEWELRY על מסך המחשב שעל הרציף המרחף.',
+  /** Describes the arrival for people who cannot see it. */
+  description:
+    'המסלול המוזהב ממשיך מהעיר אל רציף שיש מרחף, ועליו מחשב שמציג את אתר SHAY JEWELRY.',
+};
+
+/* --------------------------------------------------------------------------
    Selected works
    -------------------------------------------------------------------------- */
 
