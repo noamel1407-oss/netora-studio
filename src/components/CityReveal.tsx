@@ -79,14 +79,19 @@ export function CityReveal({ statement = true, dolly = false, children }: Props)
               city stays bright and the route stays visible through it. */}
           <span className="city__scrim" aria-hidden="true" />
 
+          {/* Two lines, warm white, with colour on exactly two words: the
+              thing we make and the thing it leaves behind. */}
           <h1 className="city__title" id="about-title">
-            <span className="city__line">אנחנו בונים</span>
-            <span className="city__line city__line--gold">אתרים תלת־ממדיים</span>
-            <span className="city__line">שמשאירים חותם.</span>
+            <span className="city__line">
+              אנחנו בונים אתרים <b className="city__accent city__accent--blue">תלת־ממדיים</b>
+            </span>
+            <span className="city__line">
+              שמשאירים <b className="city__accent city__accent--gold">חותם</b>
+            </span>
           </h1>
 
           <p className="city__lede">
-            חוויות דיגיטליות יוקרתיות שמספרות סיפור, מעוררות רגש ומניעות לפעולה.
+            חוויות דיגיטליות יוקרתיות שמספרות סיפור ומובילות לפעולה
           </p>
 
           <a className="city__cta" href="#work">

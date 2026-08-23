@@ -130,7 +130,7 @@ export function VaultHero() {
         .fromTo(
           '.city__line, .city__lede, .city__cta',
           { y: 38, autoAlpha: 0 },
-          { y: 0, autoAlpha: 1, duration: 0.042, stagger: 0.013, ease: 'power2.out' },
+          { y: 0, autoAlpha: 1, duration: 0.042, stagger: 0.011, ease: 'power2.out' },
           JOURNEY.statementIn,
         )
         // Nothing between here and statementOut: the statement simply sits

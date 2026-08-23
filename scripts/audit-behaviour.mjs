@@ -65,7 +65,8 @@ check('the floating platform renders', (await page.locator('.platform').count())
 check('the platform carries a computer', (await page.locator('.platform__monitor').count()) === 1);
 const screen = page.locator('.pscreen');
 check('the computer has a screen surface', (await screen.count()) === 1);
-check('the screen shows its poster while no recording exists', await screen.locator('.pscreen__poster').isVisible());
+check('the screen shows the project\'s own opening frame', await screen.locator('.pscreen__shot').isVisible());
+check('nothing plays inside the screen', (await page.locator('.pscreen video, .pscreen__toggle').count()) === 0);
 check(
   'the screen clips its media to the monitor',
   await page.evaluate(() => {
@@ -81,6 +82,29 @@ check('the gold route is drawn', await page.evaluate(() => {
   const d = document.querySelector('.gold--near .gold__body')?.getAttribute('d') ?? '';
   return d.length > 40;
 }));
+
+// The station's one link out to the live project.
+const station = page.locator('.station__cta');
+check('the station offers a link to the live site', (await station.count()) === 1);
+check('the link is reachable at the arrival', await station.isVisible());
+check(
+  'it opens the project safely in a new tab',
+  (await station.getAttribute('target')) === '_blank' &&
+    ((await station.getAttribute('rel')) ?? '').includes('noopener') &&
+    ((await station.getAttribute('href')) ?? '').startsWith('http'),
+  `href=${await station.getAttribute('href')} rel=${await station.getAttribute('rel')}`,
+);
+check(
+  'it is big enough to hit on a phone',
+  await station.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return r.height >= 44 && r.width >= 96;
+  }),
+);
+check(
+  'the computer itself is not the click target',
+  (await page.locator('.monitor__well a, .pscreen a').count()) === 0,
+);
 
 // --- showcases -----------------------------------------------------------
 const showcases = await page.locator('.showcase').count();

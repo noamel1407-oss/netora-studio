@@ -40,19 +40,15 @@
    -------------------------------------------------------------------------- */
 .city__scrim {
   position: absolute;
-  inset-block: -12%;
-  inset-inline-start: -8%;
-  inline-size: 78%;
+  inset-block: -14%;
+  inset-inline: -16%;
   z-index: -1;
   pointer-events: none;
+  /* Two soft pools centred on the type, and nothing with an edge: the
+     colonnade on one side and the route below both stay untouched. */
   background:
-    radial-gradient(
-      ellipse 62% 48% at 78% 44%,
-      rgba(11, 26, 51, 0.42) 0%,
-      rgba(11, 26, 51, 0.22) 44%,
-      transparent 72%
-    ),
-    linear-gradient(to left, rgba(9, 22, 44, 0.3) 0%, rgba(9, 22, 44, 0.1) 38%, transparent 68%);
+    radial-gradient(ellipse 42% 30% at 62% 42%, rgba(10, 24, 48, 0.46) 0%, transparent 72%),
+    radial-gradient(ellipse 78% 54% at 60% 42%, rgba(9, 22, 44, 0.26) 0%, transparent 78%);
 }
 
 /* Keeps the headline legible over the sky without dimming the world. */
@@ -80,31 +76,45 @@
 .city__title {
   display: flex;
   flex-direction: column;
-  gap: 0.2em;
+  gap: 0.16em;
   font-family: var(--font-display-he);
-  font-size: clamp(2.3rem, 1.4rem + 3.6vw, 4.3rem);
+  font-size: clamp(2.35rem, 1.35rem + 3.7vw, 4.4rem);
   font-weight: 500;
-  line-height: 1.18;
+  line-height: 1.16;
   letter-spacing: 0.005em;
   color: #fdfbf5;
   text-shadow: 0 2px 26px rgba(10, 22, 44, 0.55);
 }
 
-.city__line--gold {
-  background: linear-gradient(180deg, #f6dfae 0%, #dcae5e 55%, #a97f34 100%);
+/* Two accented words in the whole statement. Everything else is warm white,
+   which is what lets these carry any weight at all. */
+.city__accent {
+  font-weight: inherit;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 2px 14px rgba(60, 42, 8, 0.35));
 }
 
+.city__accent--blue {
+  background-image: linear-gradient(178deg, #d3e2fb 0%, #7ba1dd 46%, #33599f 100%);
+  filter: drop-shadow(0 2px 18px rgba(10, 28, 66, 0.6));
+}
+
+.city__accent--gold {
+  background-image: linear-gradient(178deg, #f8e0ae 0%, #dcae60 52%, #9d7228 100%);
+  filter: drop-shadow(0 2px 16px rgba(52, 36, 6, 0.5));
+}
+
+ /* One line, and clearly second to the statement above it. */
 .city__lede {
-  margin-block-start: 1.6rem;
-  max-inline-size: 30ch;
-  font-size: clamp(1rem, 0.9rem + 0.5vw, 1.2rem);
-  line-height: 1.9;
-  color: rgba(250, 248, 242, 0.92);
-  text-shadow: 0 1px 16px rgba(10, 22, 44, 0.5);
+  margin-block-start: 1.35rem;
+  max-inline-size: 42ch;
+  font-size: clamp(0.95rem, 0.87rem + 0.36vw, 1.1rem);
+  font-weight: 400;
+  line-height: 1.75;
+  letter-spacing: 0.012em;
+  color: rgba(250, 248, 243, 0.93);
+  text-shadow: 0 1px 16px rgba(10, 22, 44, 0.6);
 }
 
 .city__cta {
@@ -145,15 +155,23 @@
   /* Narrow frame: the type takes the full width, so the wash follows it down
      rather than sideways. */
   .city__scrim {
-    inset-inline-start: -12%;
-    inline-size: 124%;
-    inset-block: 22% -12%;
+    inset-inline: -14%;
+    inset-block: 14% -14%;
     background:
-      radial-gradient(ellipse 74% 52% at 62% 62%, rgba(11, 26, 51, 0.42) 0%, transparent 74%),
-      linear-gradient(to top, rgba(9, 22, 44, 0.34) 0%, rgba(9, 22, 44, 0.12) 42%, transparent 76%);
+      radial-gradient(ellipse 62% 34% at 52% 46%, rgba(10, 24, 48, 0.5) 0%, transparent 74%),
+      radial-gradient(ellipse 96% 62% at 52% 52%, rgba(8, 20, 42, 0.3) 0%, transparent 80%);
   }
 
   .city__lede {
-    max-inline-size: 34ch;
+    max-inline-size: 30ch;
+    font-weight: 400;
+    color: rgba(250, 248, 243, 0.94);
+    text-shadow: 0 1px 12px rgba(8, 18, 38, 0.7);
+  }
+
+  /* Small type over bright architecture needs a little more behind it than a
+     large headline does — still local, still the same wash. */
+  .city__title {
+    text-shadow: 0 2px 22px rgba(8, 18, 38, 0.62);
   }
 }

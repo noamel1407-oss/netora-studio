@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 
 import { ProjectScreen } from './ProjectScreen';
 import { PLATFORM, travelOf, type Scene } from '../journey/scene';
@@ -15,8 +15,7 @@ type Props = { scene: Scene };
  * `CityTravel` carries the whole world past it, so the platform grows because
  * it is being approached, exactly as the architecture behind it does. All it
  * tracks by itself is the distance haze thinning out as the city's air stops
- * getting in the way, and whether the reader has arrived, which is when the
- * screen starts playing.
+ * getting in the way.
  *
  * Built as real geometry rather than a picture of geometry: a top surface, the
  * slab's thickness, its two flanks and a tapered plinth, all in one
@@ -24,7 +23,6 @@ type Props = { scene: Scene };
  */
 export function ProjectPlatform({ scene }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [arrived, setArrived] = useState(false);
 
   /* Placement and size: world units, resolved once per viewport. */
   useLayoutEffect(() => {
@@ -55,7 +53,6 @@ export function ProjectPlatform({ scene }: Props) {
        is the perspective growth, not this. */
     const haze = Math.max(0, 0.62 - t * 2.1);
     root.style.setProperty('--haze', haze.toFixed(3));
-    setArrived((previous) => (t > 0.6 ? true : previous && t > 0.5));
   }, []);
 
   useJourney(onScroll);
@@ -81,12 +78,9 @@ export function ProjectPlatform({ scene }: Props) {
         <div className="monitor__body">
           <div className="monitor__well">
             <ProjectScreen
-              videoSrc={journey.shayVideoSrc}
-              poster={journey.shayPoster}
-              label={journey.shayVideoDescription}
+              src={journey.shayShot}
               title={journey.title}
               subtitle={journey.subtitle}
-              active={arrived}
             />
           </div>
           <div className="monitor__chin">

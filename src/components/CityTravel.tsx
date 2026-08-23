@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 
 import { GoldPath } from './GoldPath';
 import { ProjectPlatform } from './ProjectPlatform';
+import { ProjectStation } from './ProjectStation';
 import { ARRIVAL_PROGRESS, cameraAt, travelOf } from '../journey/scene';
 import { publishJourney, useJourney } from '../journey/progress';
 import { useScene } from '../journey/useScene';
@@ -80,17 +81,23 @@ export function CityTravel({ still }: Props) {
   }, [still, scene]);
 
   return (
-    <div className="travel" ref={rootRef} aria-hidden="true">
-      <GoldPath scene={scene} />
+    <>
+      <div className="travel" ref={rootRef} aria-hidden="true">
+        <GoldPath scene={scene} />
 
-      <div className="travel__stage" ref={stageRef}>
-        <div className="travel__world" ref={worldRef}>
-          <div className="travel__veil" />
-          <ProjectPlatform scene={scene} />
+        <div className="travel__stage" ref={stageRef}>
+          <div className="travel__world" ref={worldRef}>
+            <div className="travel__veil" />
+            <ProjectPlatform scene={scene} />
+          </div>
         </div>
+
+        <div className="travel__air" />
       </div>
 
-      <div className="travel__air" />
-    </div>
+      {/* Outside the scene's aria-hidden layer: it is the one thing here that
+          can be acted on, so it has to reach the keyboard and the reader. */}
+      <ProjectStation scene={scene} />
+    </>
   );
 }

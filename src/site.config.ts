@@ -70,15 +70,13 @@ export const world = {
 
    SHAY is no longer introduced by a section heading — it is the thing the gold
    path leads to, standing on the first floating platform inside the city. The
-   monitor there is built around a media slot, so the finished recording is a
-   path change and nothing else:
+   monitor there shows a still of the site's own opening frame: nothing plays,
+   because the movement in that scene is the camera arriving at it.
 
-     1. drop the file at public/media/shay-jewellery.mp4 (16:10-ish, no audio,
-        seamless loop, 10-25s), or
-     2. point `shayVideoSrc` below at wherever it actually lives.
-
-   Until the file exists the poster stands in on its own; with neither, the
-   screen shows its typographic cover. Nothing else in the scene changes.
+   To swap the shot, either drop a new file at the path below or point
+   `shayShot` wherever it actually lives. A 16:10-ish capture of the site's
+   hero at 1600px or wider is what fits the screen; anything narrower is fitted
+   rather than stretched, and a missing file falls back to a typographic cover.
    -------------------------------------------------------------------------- */
 
 export const journey = {
@@ -86,11 +84,10 @@ export const journey = {
   projectId: 'jewelry',
   title: 'SHAY JEWELRY',
   subtitle: 'Timeless Elegance',
-  /** The SHAY recording. Set to null to leave the screen on its poster. */
-  shayVideoSrc: '/media/shay-jewellery.mp4' as string | null,
-  shayPoster: '/media/shay-jewellery-poster.jpg' as string | null,
-  shayVideoDescription:
-    'הקלטת מסך של אתר SHAY JEWELRY על מסך המחשב שעל הרציף המרחף.',
+  /** Still of the site's opening frame, shown inside the monitor. */
+  shayShot: '/media/shay-jewellery-poster.jpg' as string | null,
+  /** The live site, opened by the station's one link. */
+  liveUrl: 'https://www.shaijewelry.site/' as string | null,
   /** Describes the arrival for people who cannot see it. */
   description:
     'המסלול המוזהב ממשיך מהעיר אל רציף שיש מרחף, ועליו מחשב שמציג את אתר SHAY JEWELRY.',

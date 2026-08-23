@@ -1,107 +1,55 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
-import { usePrefersReducedMotion } from '../hooks/useMediaQuery';
 import './ProjectScreen.css';
 
 type Props = {
   /**
-   * The site recording that plays inside the monitor. A missing file falls
-   * back to the poster, and a missing poster to the typographic cover, so the
-   * screen is never empty and never shows a broken asset.
+   * The site's own opening frame, as a still. Nothing plays in here: the
+   * motion in this scene belongs to the camera, and a screen playing to itself
+   * while the world moves around it reads as two things happening at once.
    */
-  videoSrc: string | null;
-  videoType?: string;
-  poster: string | null;
-  /** Describes the recording for people who cannot see it. */
-  label: string;
-  /** Stand-in while neither asset exists. */
+  src: string | null;
+  /** Stand-in while no shot exists. */
   title: string;
   subtitle: string;
-  /** True once the journey has arrived at the platform. */
-  active: boolean;
 };
 
 /**
- * A physical screen surface: whatever media exists, clipped to the glass.
+ * A physical screen surface: the project's own opening frame, clipped to the
+ * glass.
  *
- * This is the slot the project video drops into — the monitor is built around
- * it rather than around a baked-in picture, so swapping the recording is a
- * path in `site.config.ts` and nothing else. The media is cropped to the
- * screen's own 16:10 only when it is at least that wide; a narrower capture is
- * letterboxed on the screen's dark ground instead of being stretched.
+ * The monitor is built around this rather than around a picture baked into the
+ * model, so swapping the shot is a path in `site.config.ts` and nothing else.
+ * The image is cropped to the screen's 16:10 only when it is at least that
+ * wide; a narrower capture is fitted rather than stretched. A missing file
+ * falls back to the typographic cover, so the screen is never empty and never
+ * shows a broken asset.
  */
-export function ProjectScreen({
-  videoSrc,
-  videoType = 'video/mp4',
-  poster,
-  label,
-  title,
-  subtitle,
-  active,
-}: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const reducedMotion = usePrefersReducedMotion();
-  const [videoMissing, setVideoMissing] = useState(false);
-  const [posterMissing, setPosterMissing] = useState(false);
+export function ProjectScreen({ src, title, subtitle }: Props) {
+  const [missing, setMissing] = useState(false);
   const [fitsWide, setFitsWide] = useState(true);
 
-  const playable = Boolean(videoSrc) && !videoMissing && !reducedMotion;
-
-  /* The recording runs while the composition is on screen and stops the
-     moment the journey leaves it — a screen the reader has scrolled away
-     from has no business decoding frames. */
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !playable) return;
-
-    if (active) {
-      video.play().catch(() => undefined);
-    } else if (!video.paused) {
-      video.pause();
-    }
-  }, [active, playable]);
-
-  const onLoadedMetadata = () => {
-    const video = videoRef.current;
-    if (!video?.videoWidth || !video.videoHeight) return;
-    setFitsWide(video.videoWidth / video.videoHeight >= 1.5);
-  };
-
   return (
-    <div className={`pscreen${fitsWide ? '' : ' pscreen--letterbox'}`} aria-hidden="true">
+    <div className={`pscreen${fitsWide ? '' : ' pscreen--fit'}`} aria-hidden="true">
       <div className="pscreen__cover">
         <span className="pscreen__cover-title">{title}</span>
         <span className="pscreen__cover-rule" />
         <span className="pscreen__cover-sub">{subtitle}</span>
       </div>
 
-      {poster && !posterMissing && (
+      {src && !missing && (
         <img
-          className="pscreen__poster"
-          src={poster}
+          className="pscreen__shot"
+          src={src}
           alt=""
           decoding="async"
           loading="lazy"
-          onError={() => setPosterMissing(true)}
+          onLoad={(event) => {
+            const { naturalWidth, naturalHeight } = event.currentTarget;
+            if (naturalWidth && naturalHeight) setFitsWide(naturalWidth / naturalHeight >= 1.5);
+          }}
+          onError={() => setMissing(true)}
         />
-      )}
-
-      {videoSrc && !videoMissing && (
-        <video
-          ref={videoRef}
-          className="pscreen__media"
-          poster={poster && !posterMissing ? poster : undefined}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          disablePictureInPicture
-          tabIndex={-1}
-          aria-label={label}
-          onLoadedMetadata={onLoadedMetadata}
-        >
-          <source src={videoSrc} type={videoType} onError={() => setVideoMissing(true)} />
-        </video>
       )}
 
       <span className="pscreen__glass" />

@@ -37,7 +37,7 @@ Everything lives in `public/media/` under fixed names — no code changes needed
 | Jewellery site still | `public/media/shay-jewellery-poster.jpg` | **in** (generated placeholder) |
 | Watch site still | `public/media/watch-project.jpg` | missing → typographic cover |
 | Watch site recording | `public/media/watch-project.mp4` | missing → play button hidden |
-| Jewellery site recording | `public/media/shay-jewellery.mp4` | missing → the platform's screen shows its poster |
+| SHAY opening frame (on the platform's screen) | `public/media/shay-jewellery-poster.jpg` | **in** (generated placeholder — swap for a real capture) |
 
 Screen recordings: 16:10-ish, 10–25 s, no audio, seamless loop. A portrait capture is
 letterboxed rather than cropped, but a desktop recording is what fits a laptop screen.
@@ -77,7 +77,7 @@ the "לצפייה באתר" button (the watch project ships as `null` until its 
 | Legal / accessibility page text | `src/content/legal.ts` |
 | Colours, type scale, spacing | `src/styles/global.css` (`:root`) |
 | Journey choreography (timings, scale, stagger) | `src/components/VaultHero.tsx` + `src/journey/scene.ts` |
-| The SHAY video on the platform's screen | `src/site.config.ts` → `journey.shayVideoSrc` |
+| The still on the platform's screen, and the link off it | `src/site.config.ts` → `journey.shayShot`, `journey.liveUrl` |
 | Camera, gold route, platform placement | `src/journey/scene.ts` |
 
 ## How the journey works
@@ -172,25 +172,33 @@ Every transform inside the 3D subtrees is written as world coordinates measured 
 anchor, so those elements set `transform-origin: 0 0`. The default `50% 50%` turns an
 out-of-plane rotation into a displacement, which is a very confusing bug to look at.
 
-### The first project's screen
+### The first project's screen, and its one link
 
-`ProjectScreen` is the media surface the monitor is built around, rather than a picture
-baked into it:
+`ProjectScreen` is the surface the monitor is built around, rather than a
+picture baked into it:
 
 ```jsx
-<ProjectScreen videoSrc={journey.shayVideoSrc} poster={journey.shayPoster} … />
+<ProjectScreen src={journey.shayShot} … />
 ```
 
-Swapping in the finished SHAY recording is `journey.shayVideoSrc` in `src/site.config.ts`,
-or simply dropping the file at `public/media/shay-jewellery.mp4`. It is clipped to the
-glass, muted, `playsInline`, has no browser chrome, plays only once the reader has arrived
-and pauses when they leave, and is cropped to the screen's 16:10 only when it is at least
-that wide — a narrower capture is letterboxed rather than stretched. A missing file falls
-back to the poster and a missing poster to a typographic cover, so the screen is never
-empty and never shows a broken asset.
+It shows a still of the site's own opening frame. Nothing plays in there: the
+movement in that scene is the camera arriving at it, and a screen playing to
+itself while the world moves around it reads as two things happening at once.
+Swapping the shot is `journey.shayShot` in `src/site.config.ts`, or dropping a
+new file at the path it points to — a 16:10-ish capture of the site's hero at
+1600px or wider. It is cropped from the top (where a site composes its
+opening), fitted rather than stretched if it is narrower than the screen, and
+falls back to a typographic cover if the file is missing.
 
-Interaction on the platform — the project's title, its live link, anything clickable — is
-the next milestone. What exists now is the journey to it.
+`ProjectStation` is the one thing on the platform that can be acted on: a
+real link to the live site, `target="_blank" rel="noopener noreferrer"`. It
+stands on the marble — its position is the same projection the platform is
+drawn with, so it arrives with the architecture — but it does not scale with
+it, because a link that shrinks into the distance is one nobody can read or
+hit. It lives outside the scene's `aria-hidden` layer and stays
+`visibility: hidden` until the arrival, so it is never a focus stop for a
+destination the reader has not reached, and the computer itself is never the
+click target.
 
 ### The terrace after it
 
@@ -207,8 +215,9 @@ VaultHero            ← owns the sticky stage + the single scroll timeline
 └─ CityReveal        ← the world artwork + the statement (the page's <h1>)
    └─ CityTravel     ← the camera: perspective stage + the world it carries
       ├─ GoldPath    ← the route, projected and redrawn per frame (2 layers)
-      └─ ProjectPlatform  ← slab, plinth, monitor
-         └─ ProjectScreen ← the media slot inside the glass
+      ├─ ProjectPlatform  ← slab, plinth, monitor
+      │  └─ ProjectScreen ← the still inside the glass
+      └─ ProjectStation   ← the link to the live site, standing on the marble
 SelectedWorks
 └─ ProjectShowcase   ← per project: tilt scene, platform, caption, live link
    └─ LaptopMockup   ← silver frame; the screen is whatever is passed in

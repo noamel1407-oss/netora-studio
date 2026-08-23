@@ -10,26 +10,21 @@
   isolation: isolate;
 }
 
-.pscreen__poster,
-.pscreen__media {
+.pscreen__shot {
   position: absolute;
   inset: 0;
+  z-index: 1;
   inline-size: 100%;
   block-size: 100%;
+  /* Cropped from the top: a site's opening frame is composed there, and it is
+     the part worth showing at this size. */
   object-fit: cover;
+  object-position: 50% 0%;
 }
 
-.pscreen__poster {
-  z-index: 1;
-}
-
-.pscreen__media {
-  z-index: 2;
-}
-
-/* A capture narrower than the screen keeps its proportions rather than
-   being cropped to a band. */
-.pscreen--letterbox .pscreen__media {
+/* A shot narrower than the screen keeps its proportions rather than being
+   cropped to a band. */
+.pscreen--fit .pscreen__shot {
   object-fit: contain;
 }
 

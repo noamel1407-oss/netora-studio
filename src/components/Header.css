@@ -1,27 +1,51 @@
+/* --------------------------------------------------------------------------
+   Top chrome.
+
+   The header sits over a world rather than over a page, so it is not a bar:
+   there is no strip, no rule under it, and no edge anywhere for the eye to
+   catch. What holds the type legible is a soft fall of light from the top of
+   the frame, deepest at the very top and gone by the time it reaches the
+   world's own horizon.
+   -------------------------------------------------------------------------- */
+
 .header {
   position: fixed;
   inset-block-start: 0;
   inset-inline: 0;
   z-index: 100;
-  transition:
-    background-color 0.45s var(--ease-out),
-    border-color 0.45s var(--ease-out),
-    backdrop-filter 0.45s var(--ease-out);
-  border-block-end: 1px solid transparent;
+  transition: opacity 0.45s var(--ease-out);
 }
 
-.header.is-scrolled {
-  background: rgba(2, 8, 23, 0.58);
-  backdrop-filter: blur(8px);
-  border-block-end-color: var(--line);
+/* The wash, on its own layer so it can fade without touching the type. */
+.header::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: 190%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(3, 9, 22, 0.62) 0%,
+    rgba(3, 9, 22, 0.34) 42%,
+    rgba(3, 9, 22, 0.12) 72%,
+    transparent 100%
+  );
+  transition: opacity 0.5s var(--ease-out);
+}
+
+.header.is-scrolled::before {
+  opacity: 1;
 }
 
 .header__inner {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  padding-block: 0.55rem;
+  padding-block: 0.7rem;
 }
 
 /* The wordmark sits on the left edge in both writing directions. */
@@ -72,14 +96,25 @@
   scale: 1 1;
 }
 
+ /* No box around it: a pair of rules on a barely-there disc, sized for a
+    thumb rather than for a border. */
 .header__burger {
   display: none;
   order: 1;
-  padding: 0.6rem;
-  background: none;
-  border: 1px solid var(--line-strong);
-  border-radius: 2px;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  background: rgba(250, 246, 236, 0.06);
+  border: 0;
+  border-radius: 50%;
   cursor: pointer;
+  transition: background-color 0.3s var(--ease-out);
+}
+
+.header__burger:hover,
+.header__burger:focus-visible {
+  background: rgba(250, 246, 236, 0.12);
 }
 
 .header__burger-icon {
@@ -93,7 +128,7 @@
   position: absolute;
   inset-inline: 0;
   block-size: 1px;
-  background: var(--text);
+  background: rgba(246, 242, 233, 0.9);
   transition:
     transform 0.3s var(--ease-out),
     opacity 0.3s var(--ease-out);
@@ -175,14 +210,13 @@
   }
 
   .header__burger {
-    display: block;
+    display: grid;
   }
 
   .header__panel {
     display: block;
-    border-block-start: 1px solid var(--line);
-    background: rgba(2, 8, 23, 0.97);
-    backdrop-filter: blur(18px);
+    background: rgba(4, 11, 26, 0.93);
+    backdrop-filter: blur(20px);
   }
 
   .header__panel ul {
@@ -212,10 +246,16 @@
    flips to bright glass with navy type (.is-light-world lives on <html>).
    -------------------------------------------------------------------------- */
 
-.is-light-world .header {
-  background: rgba(250, 248, 243, 0.66);
-  backdrop-filter: blur(10px);
-  border-block-end-color: rgba(28, 44, 70, 0.1);
+/* In the bright world the same fall of light turns warm and pale, so the
+   navy type reads without a panel appearing under it. */
+.is-light-world .header::before {
+  background: linear-gradient(
+    180deg,
+    rgba(252, 250, 245, 0.72) 0%,
+    rgba(252, 250, 245, 0.42) 44%,
+    rgba(252, 250, 245, 0.14) 74%,
+    transparent 100%
+  );
 }
 
 .is-light-world .header__links a {
@@ -253,9 +293,14 @@
 }
 
 .is-light-world .header__burger {
-  border-color: rgba(28, 44, 70, 0.25);
+  background: rgba(24, 40, 66, 0.06);
+}
+
+.is-light-world .header__burger:hover,
+.is-light-world .header__burger:focus-visible {
+  background: rgba(24, 40, 66, 0.11);
 }
 
 .is-light-world .header__burger-icon i {
-  background: var(--ink);
+  background: rgba(22, 39, 63, 0.85);
 }

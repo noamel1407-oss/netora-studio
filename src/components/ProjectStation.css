@@ -1,0 +1,81 @@
+/* The station's own plaque. Ivory marble, a gold hairline, one sapphire mark:
+   the platform's materials at the size of something you can press. */
+.station {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform-origin: 0 0;
+  transition: visibility 0.3s var(--ease-out);
+  will-change: transform, opacity;
+}
+
+.station.is-available {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.station__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-block-size: 2.75rem;
+  padding: 0.7rem 1.15rem;
+  border: 1px solid rgba(186, 145, 74, 0.6);
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(253, 251, 245, 0.96) 0%, rgba(238, 232, 219, 0.94) 100%);
+  color: #1c2c45;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 10px 26px -14px rgba(26, 38, 62, 0.7);
+  transition:
+    border-color 0.3s var(--ease-out),
+    box-shadow 0.3s var(--ease-out),
+    transform 0.3s var(--ease-out);
+}
+
+.station__cta:hover,
+.station__cta:focus-visible {
+  border-color: rgba(206, 162, 86, 0.9);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 14px 30px -14px rgba(26, 38, 62, 0.8);
+  transform: translateY(-1px);
+}
+
+/* The one piece of colour on it. */
+.station__mark {
+  inline-size: 6px;
+  block-size: 6px;
+  rotate: 45deg;
+  background: linear-gradient(135deg, #6b8fd0, #2f4f8c);
+}
+
+.station__cta svg {
+  color: rgba(150, 116, 58, 0.9);
+}
+
+/* A short gold thread down to the marble, so the plaque stands on the
+   platform rather than floating over it. */
+.station__tether {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 50%;
+  inline-size: 1px;
+  block-size: 1.15rem;
+  background: linear-gradient(180deg, rgba(196, 152, 78, 0.85), transparent);
+}
+
+@media (max-width: 860px) {
+  .station__cta {
+    padding: 0.7rem 1rem;
+    font-size: 0.875rem;
+  }
+}
