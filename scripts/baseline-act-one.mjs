@@ -203,7 +203,15 @@ async function walk(page, viewport, wantShots) {
     const journey = document.querySelector('.journey');
     if (!journey) return null;
     const styles = getComputedStyle(journey);
-    const one = parseFloat(styles.getPropertyValue('--act-one-h')) || 100;
+    /* Before act two existed there was no `--act-one-h` and the container was
+       act one — so fall back to its own length rather than to a number that
+       makes the share 0/0. This has to keep working against the unchanged
+       site: a harness that cannot measure the thing it is protecting is not
+       protecting anything. */
+    const one =
+      parseFloat(styles.getPropertyValue('--act-one-h')) ||
+      parseFloat(styles.getPropertyValue('--journey-h')) ||
+      100;
     const two = parseFloat(styles.getPropertyValue('--act-two-h')) || 0;
     return {
       height: Math.round(journey.getBoundingClientRect().height),
@@ -373,6 +381,36 @@ function sameEnough(a, b) {
   return true;
 }
 
+/** The first thing that actually differs, said in one line. */
+function describeDiff(a, b) {
+  if (!a || !b) return `${a ? 'present' : 'absent'} → ${b ? 'present' : 'absent'}`;
+
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const x = a[key];
+    const y = b[key];
+    if (x === y) continue;
+
+    if (typeof x === 'string' && typeof y === 'string') {
+      const nx = (x.match(/-?\d+\.?\d*/g) ?? []).map(Number);
+      const ny = (y.match(/-?\d+\.?\d*/g) ?? []).map(Number);
+      if (nx.length === ny.length) {
+        let worst = 0;
+        let at = -1;
+        nx.forEach((n, i) => {
+          const d = Math.abs(n - ny[i]);
+          if (d > worst) (worst = d), (at = i);
+        });
+        if (at >= 0) return `${key}[${at}] ${nx[at]} → ${ny[at]} (${worst.toFixed(3)})`;
+      }
+      return `${key} shape changed`;
+    }
+
+    return `${key} ${JSON.stringify(x)} → ${JSON.stringify(y)}`;
+  }
+
+  return 'equal';
+}
+
 async function verify() {
   const before = JSON.parse(await readFile(jsonPath, 'utf8'));
   const { captured } = await run();
@@ -417,13 +455,7 @@ async function verify() {
         const x = a.elements[selector];
         const y = b.elements[selector];
         if (!sameEnough(x, y)) {
-          if (moved < 4) {
-            fail(
-              `${name} @${a.scrollY}px: ${selector} differs\n` +
-                `        was ${JSON.stringify(x)}\n` +
-                `        now ${JSON.stringify(y)}`,
-            );
-          }
+          if (moved < 6) fail(`${name} @${a.scrollY}px: ${selector} — ${describeDiff(x, y)}`);
           moved += 1;
         }
       }
