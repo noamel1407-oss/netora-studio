@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
 
 import { ProjectScreen } from './ProjectScreen';
-import { ACT2, GROUND, type Scene } from '../journey/scene';
+import { GROUND, ROUTE, type Scene } from '../journey/scene';
 import { useRoute } from '../journey/progress';
 import { projects } from '../site.config';
 import './RouteGreybox.css';
@@ -95,43 +95,58 @@ export function RouteGreybox({ scene }: Props) {
     if (root) root.style.visibility = 'hidden';
   }, []);
 
-  const { facade, hall, wall, display, opening, corridor, terrace, contact } = ACT2;
+  const { facade, hall, wall, display, plaza } = ROUTE;
 
-  /* The bays, evenly down the corridor. Greybox: a ring of four thin faces,
-     which is enough to count as they pass and no more than that. */
-  const bays = Array.from({ length: corridor.bays }, (_, i) => {
-    const at = corridor.from + ((corridor.to - corridor.from) * (i + 0.5)) / corridor.bays;
-    const inset = 110;
-    return { at, inset };
-  });
+  /** A run of depth, cut into pieces small enough not to span the lens. */
+  const bands = (from: number, to: number, count: number) =>
+    Array.from({ length: count }, (_, i) => [
+      from + ((to - from) * i) / count,
+      from + ((to - from) * (i + 1)) / count,
+    ] as [number, number]);
 
   return (
     <div className="grey" ref={rootRef} aria-hidden="true">
-      {/* The plaza the route comes down onto, and the terrace it ends on. */}
-      <i className="grey__face grey__face--floor" style={place.deck(-4000, 4000, ACT2.plaza.from, ACT2.plaza.to, GROUND)} />
-      <i className="grey__face grey__face--floor" style={place.deck(-2000, 4200, terrace.from, terrace.to, GROUND)} />
+      {/*
+        The ground, in bands rather than as one slab.
+
+        A plane that spans the camera is clipped by CSS at the perspective
+        plane and simply stops being drawn, which took the floor out from under
+        the frame at exactly the moment the camera was standing on it. Bands
+        are individually either in front of the lens or behind it, so the ones
+        ahead keep drawing while the ones passed drop out — which is also what
+        gives a flat greybox floor something to read distance against.
+      */}
+      {bands(plaza.from, plaza.to, 10).map(([from, to]) => (
+        <i key={from} className="grey__face grey__face--floor" style={place.deck(-5200, 5200, from, to, GROUND)} />
+      ))}
 
       {/* TIMEMATIC's front: a mass with one opening, on the approach axis. */}
-      <i className="grey__face grey__face--mass" style={place.wall(facade.x[0], facade.door.x[0], facade.top, GROUND, facade.z)} />
-      <i className="grey__face grey__face--mass" style={place.wall(facade.door.x[1], facade.x[1], facade.top, GROUND, facade.z)} />
-      <i className="grey__face grey__face--mass" style={place.wall(facade.door.x[0], facade.door.x[1], facade.top, facade.door.top, facade.z)} />
+      <i className="grey__face grey__face--mass" data-part="facade" style={place.wall(facade.x[0], facade.door.x[0], facade.top, GROUND, facade.z)} />
+      <i className="grey__face grey__face--mass" data-part="facade" style={place.wall(facade.door.x[1], facade.x[1], facade.top, GROUND, facade.z)} />
+      <i className="grey__face grey__face--mass" data-part="facade" style={place.wall(facade.door.x[0], facade.door.x[1], facade.top, facade.door.top, facade.z)} />
 
       {/* The hall. */}
-      <i className="grey__face grey__face--floor" style={place.deck(hall.x[0], hall.x[1], hall.from, hall.to, GROUND)} />
-      <i className="grey__face grey__face--ceil" style={place.deck(hall.x[0], hall.x[1], hall.from, hall.to, hall.top)} />
-      <i className="grey__face grey__face--side" style={place.side(hall.x[0], hall.top, GROUND, hall.from, hall.to)} />
-      <i className="grey__face grey__face--side" style={place.side(hall.x[1], hall.top, GROUND, hall.from, hall.to)} />
+      {bands(hall.from, hall.to, 6).map(([from, to]) => (
+        <i key={from} className="grey__face grey__face--floor" style={place.deck(hall.x[0], hall.x[1], from, to, GROUND)} />
+      ))}
+      {bands(hall.from, hall.to, 6).map(([from, to]) => (
+        <i key={`c${from}`} className="grey__face grey__face--ceil" style={place.deck(hall.x[0], hall.x[1], from, to, hall.top)} />
+      ))}
+      {bands(hall.from, hall.to, 6).flatMap(([from, to]) => [
+        <i key={`l${from}`} className="grey__face grey__face--side" style={place.side(hall.x[0], hall.top, GROUND, from, to)} />,
+        <i key={`r${from}`} className="grey__face grey__face--side" style={place.side(hall.x[1], hall.top, GROUND, from, to)} />,
+      ])}
 
       {/*
-        The far wall — one plane, one hole. Left of the hole it carries the
-        display; right of it, and above it, it is solid. This is the whole of
-        "the screens are surfaces": there is no way through except the opening.
+        The far wall. Solid, all the way across — the corridor that eventually
+        opens in it is the next act's, and until it exists there is nothing
+        through this wall at all. The display hangs on it.
       */}
-      <i className="grey__face grey__face--mass" style={place.wall(hall.x[0], opening.x[0], hall.top, GROUND, wall.z)} />
-      <i className="grey__face grey__face--mass" style={place.wall(opening.x[1], hall.x[1], hall.top, GROUND, wall.z)} />
-      <i className="grey__face grey__face--mass" style={place.wall(opening.x[0], opening.x[1], hall.top, opening.top, wall.z)} />
+      <i className="grey__face grey__face--mass" data-part="wall" style={place.wall(hall.x[0], hall.x[1], hall.top, GROUND, wall.z)} />
 
-      {/* The display, hanging on the solid part of that wall. */}
+      {/* The display, standing in the world on that wall. The camera stops in
+          front of it and never reaches it: the wall is 2000 units past where
+          the camera halts, and nothing on the route goes further. */}
       <div
         className="grey__display"
         style={place.wall(display.x[0], display.x[1], display.y[0], display.y[1], wall.z + 20)}
@@ -142,29 +157,6 @@ export function RouteGreybox({ scene }: Props) {
           subtitle={watch?.subtitle ?? ''}
         />
       </div>
-
-      {/* The corridor. */}
-      <i className="grey__face grey__face--floor" style={place.deck(corridor.x[0], corridor.x[1], corridor.from, corridor.to, GROUND)} />
-      <i className="grey__face grey__face--ceil" style={place.deck(corridor.x[0], corridor.x[1], corridor.from, corridor.to, corridor.top)} />
-      <i className="grey__face grey__face--side" style={place.side(corridor.x[0], corridor.top, GROUND, corridor.from, corridor.to)} />
-      <i className="grey__face grey__face--side" style={place.side(corridor.x[1], corridor.top, GROUND, corridor.from, corridor.to)} />
-
-      {bays.map(({ at, inset }) => (
-        <div key={at} className="grey__bay">
-          <i className="grey__face grey__face--bay" style={place.wall(corridor.x[0], corridor.x[0] + inset, corridor.top, GROUND, at)} />
-          <i className="grey__face grey__face--bay" style={place.wall(corridor.x[1] - inset, corridor.x[1], corridor.top, GROUND, at)} />
-          <i className="grey__face grey__face--bay" style={place.wall(corridor.x[0], corridor.x[1], corridor.top, corridor.top + inset, at)} />
-        </div>
-      ))}
-
-      {/* The far arch, and the thing the route ends at. */}
-      <i className="grey__face grey__face--bay" style={place.wall(corridor.x[0] - 260, corridor.x[0], corridor.top - 220, GROUND, corridor.to)} />
-      <i className="grey__face grey__face--bay" style={place.wall(corridor.x[1], corridor.x[1] + 260, corridor.top - 220, GROUND, corridor.to)} />
-      <i className="grey__face grey__face--bay" style={place.wall(corridor.x[0] - 260, corridor.x[1] + 260, corridor.top - 220, corridor.top, corridor.to)} />
-
-      <i className="grey__face grey__face--mass" style={place.wall(contact.x[0], contact.x[1], contact.top, GROUND, contact.z)} />
-      <i className="grey__face grey__face--side" style={place.side(contact.x[0], contact.top, GROUND, contact.z, contact.z - 900)} />
-      <i className="grey__face grey__face--side" style={place.side(contact.x[1], contact.top, GROUND, contact.z, contact.z - 900)} />
-    </div>
+</div>
   );
 }

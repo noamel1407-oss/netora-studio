@@ -69,7 +69,20 @@ export function CityTravel({ still }: Props) {
          itself would flatten its perspective.) */
       stage.style.opacity = Math.min(1, camera.t / 0.09).toFixed(3);
 
-      stage.style.transform = `translate3d(0, ${camera.tiltY.toFixed(2)}px, 0)`;
+      /*
+       * The tilt, and the frame's settle, both as one translate on the stage.
+       *
+       * A lens shift has to be a uniform translation of the projected image —
+       * so it is applied here rather than by moving `perspective-origin`, which
+       * would change the viewing direction and shear the world instead. The
+       * anchor the geometry is placed from and the perspective origin stay the
+       * same point, which is what keeps CSS's projection and `project()`
+       * agreeing on every pixel; `camera.vp` carries the identical shift for
+       * everything drawn through the latter.
+       */
+      const shiftX = camera.vp.x - scene.vp.x;
+      const shiftY = camera.vp.y - scene.vp.y;
+      stage.style.transform = `translate3d(${shiftX.toFixed(2)}px, ${(camera.tiltY + shiftY).toFixed(2)}px, 0)`;
       world.style.transform = `translate3d(${camera.x.toFixed(2)}px, 0, ${camera.z.toFixed(2)}px)`;
       root.style.setProperty('--air', (camera.t * 0.5).toFixed(3));
     },

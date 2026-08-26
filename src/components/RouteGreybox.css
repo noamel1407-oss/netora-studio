@@ -36,19 +36,34 @@
   box-shadow: inset 0 0 0 6px rgba(28, 32, 42, 0.34);
 }
 
-/* Underfoot. */
+/*
+   Underfoot.
+
+   No inset edge on these. The ground is drawn in bands so that CSS does not
+   clip a plane spanning the lens, and an inset edge scales with its own
+   surface — on the band the camera is standing on it becomes hundreds of
+   pixels of border and the floor reads as a flight of steps. Alternating
+   values give the same distance cue and cost nothing.
+*/
 .grey__face--floor {
   background: #8d919c;
+  box-shadow: none;
 }
 
-/* Overhead. */
+.grey__face--floor:nth-of-type(even) {
+  background: #969aa5;
+}
+
+/* Overhead. Banded for the same reason, and unedged for the same reason. */
 .grey__face--ceil {
   background: #5f636e;
+  box-shadow: none;
 }
 
 /* Beside you. */
 .grey__face--side {
   background: #a2a6b1;
+  box-shadow: none;
 }
 
 /* Solid: a facade, a wall, the thing at the end. */

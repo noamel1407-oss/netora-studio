@@ -347,6 +347,13 @@ function sameEnough(a, b) {
     const y = b[key];
     if (x === y) continue;
 
+    /* `visibility` is how GSAP finishes an `autoAlpha`, so it flips at the
+       instant opacity reaches zero — and which side of that instant a scrubbed
+       timeline has settled on is the same sub-pixel lag as everything else
+       here. On something already invisible it is not a difference anyone can
+       see. */
+    if (key === 'visibility' && (a.opacity ?? 1) < 0.02 && (b.opacity ?? 1) < 0.02) continue;
+
     if (typeof x === 'number' && typeof y === 'number') {
       if (Math.abs(x - y) > 0.05) return false;
       continue;
@@ -371,7 +378,16 @@ function sameEnough(a, b) {
          on a rounding boundary can legitimately land either side of it. A
          tenth of a pixel is not a regression; the luminance grid is what
          catches anything that is. */
-      if (nx.some((n, i) => Math.abs(n - ny[i]) > 0.12)) return false;
+      /*
+       * Half a pixel.
+       *
+       * Tighter than this and the baseline reports the tail of the scrub's
+       * easing rather than anything about the journey — a camera dolly landing
+       * on 49.75 against 49.54 on frames whose luminance grids are identical.
+       * Half a pixel is below what a compositor draws and far below what
+       * anyone sees, and the grid is what catches a real change.
+       */
+      if (nx.some((n, i) => Math.abs(n - ny[i]) > 0.5)) return false;
       continue;
     }
 

@@ -35,18 +35,21 @@ import sharp from 'sharp';
 const BASE = 'http://localhost:4173';
 const REFS = path.join(process.cwd(), 'reference', 'transitions');
 const OUT = path.join(process.cwd(), '_shots', 'anchors');
-const VIEW = { width: 1440, height: 900 };
+/**
+ * 16:9, because the anchors are. They are 1672x941; the site's own frame is
+ * 16:10, and a fraction of *height* does not transfer between the two. The
+ * first pass at this compared 16:10 renders against 16:9 references and the
+ * vertical numbers were meaningless.
+ */
+const VIEW = { width: 1440, height: 810 };
 
 /**
  * Where each anchor's camera stands, as journey travel. Act one is [0, 1], so
  * all of these are act two.
  */
 const ANCHORS = [
-  { id: '01', travel: 1.15, file: '01-shay-to-timematic', of: 'the route across the plaza toward TIMEMATIC' },
-  { id: '02', travel: 1.66, file: '02-timematic-portfolio-stop', of: 'the stop, square to the display' },
-  { id: '03', travel: 1.86, file: '03-timematic-to-corridor', of: 'display left, corridor right' },
-  { id: '04', travel: 1.91, file: '04-corridor-interior', of: 'inside the corridor' },
-  { id: '05', travel: 2.0, file: '05-corridor-to-contact', of: 'out of the corridor, contact ahead' },
+  { id: '01', travel: 1.18, file: '01-shay-to-timematic', of: 'across the plaza, TIMEMATIC ahead' },
+  { id: '02', travel: 1.92, file: '02-timematic-portfolio-stop', of: 'the stop, square to the display' },
 ];
 
 /**
@@ -54,8 +57,8 @@ const ANCHORS = [
  * From `npm run assets:anchors`; `null` where the reference does not show it.
  */
 const EXPECTED = {
+  '01': { facade: { x0: 0.355, x1: 0.575, y0: 0.09, y1: 0.63 } },
   '02': { display: { x0: 0.361, x1: 0.634, y0: 0.323, y1: 0.613 } },
-  '03': { display: { x0: 0.112, x1: 0.488, y0: 0.23, y1: 0.634 } },
 };
 
 const pct = (v) => `${(v * 100).toFixed(1)}%`;
@@ -100,7 +103,10 @@ const frame = await page.evaluate(() => {
   return {
     top: Math.round(rect.top + window.scrollY),
     height: Math.round(rect.height),
-    share: one / (one + two),
+    /* Act one's share of the *scrolled* length, not of the container's
+       height — a sticky container is scrubbed over its height less one
+       viewport. Same formula as `shareOfScroll` in VaultHero. */
+    share: (one - 100) / (one + two - 100),
   };
 });
 const range = frame.height - VIEW.height;
@@ -134,8 +140,23 @@ for (const anchor of ANCHORS) {
         y1: r.bottom / view.height,
       };
     };
+    /* Named architecture, as the union of the faces that make it up. */
+    const part = (name) => {
+      const faces = [...document.querySelectorAll(`[data-part="${name}"]`)];
+      if (faces.length === 0) return null;
+      const rects = faces.map((f) => f.getBoundingClientRect()).filter((r) => r.width > 1);
+      if (rects.length === 0) return null;
+      return {
+        x0: Math.min(...rects.map((r) => r.left)) / view.width,
+        x1: Math.max(...rects.map((r) => r.right)) / view.width,
+        y0: Math.min(...rects.map((r) => r.top)) / view.height,
+        y1: Math.max(...rects.map((r) => r.bottom)) / view.height,
+      };
+    };
+
     return {
       display: box('.grey__display'),
+      facade: part('facade'),
       greyboxVisible: getComputedStyle(document.querySelector('.grey')).visibility,
       faces: document.querySelectorAll('.grey__face').length,
     };
@@ -162,21 +183,24 @@ for (const anchor of ANCHORS) {
   console.log(`${anchor.id}  travel ${anchor.travel.toFixed(2)}  scrollY ${scrollY}  — ${anchor.of}`);
   console.log(`    greybox ${seen.greyboxVisible}, ${seen.faces} faces`);
 
-  const want = EXPECTED[anchor.id]?.display;
-  if (seen.display) {
-    const d = seen.display;
-    console.log(`    display  x ${pct(d.x0)}–${pct(d.x1)}   y ${pct(d.y0)}–${pct(d.y1)}`);
-    if (want) {
-      const dx = ((d.x0 + d.x1) / 2 - (want.x0 + want.x1) / 2) * 100;
-      const dw = ((d.x1 - d.x0) / (want.x1 - want.x0) - 1) * 100;
-      console.log(`    anchor   x ${pct(want.x0)}–${pct(want.x1)}   y ${pct(want.y0)}–${pct(want.y1)}`);
-      console.log(
-        `    delta    centre ${dx >= 0 ? '+' : ''}${dx.toFixed(1)}% of frame, ` +
-          `width ${dw >= 0 ? '+' : ''}${dw.toFixed(1)}%`,
-      );
+  for (const [what, seenBox] of [['display', seen.display], ['facade', seen.facade]]) {
+    const want = EXPECTED[anchor.id]?.[what];
+    if (!want) continue;
+    if (!seenBox) {
+      console.log(`    ${what.padEnd(8)} NOT IN FRAME — the anchor puts it at x ${pct(want.x0)}–${pct(want.x1)}`);
+      continue;
     }
-  } else if (want) {
-    console.log(`    display  NOT IN FRAME — the anchor puts it at x ${pct(want.x0)}–${pct(want.x1)}`);
+    const w = (b) => b.x1 - b.x0;
+    const h = (b) => b.y1 - b.y0;
+    const cx = (b) => (b.x0 + b.x1) / 2;
+    const cy = (b) => (b.y0 + b.y1) / 2;
+    console.log(`    ${what.padEnd(8)} greybox  x ${pct(seenBox.x0)}–${pct(seenBox.x1)}   y ${pct(seenBox.y0)}–${pct(seenBox.y1)}`);
+    console.log(`    ${''.padEnd(8)} anchor   x ${pct(want.x0)}–${pct(want.x1)}   y ${pct(want.y0)}–${pct(want.y1)}`);
+    console.log(
+      `    ${''.padEnd(8)} delta    centre ${((cx(seenBox) - cx(want)) * 100).toFixed(1)}% / ` +
+        `${((cy(seenBox) - cy(want)) * 100).toFixed(1)}% of frame,  ` +
+        `size ${((w(seenBox) / w(want) - 1) * 100).toFixed(1)}% / ${((h(seenBox) / h(want) - 1) * 100).toFixed(1)}%`,
+    );
   }
   console.log();
 }
