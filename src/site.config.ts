@@ -94,6 +94,42 @@ export const journey = {
 };
 
 /* --------------------------------------------------------------------------
+   The route past the first platform.
+
+   Five canonical anchors under `reference/transitions/` fix this stretch —
+   SHAY's forecourt, the TIMEMATIC stop, the exit composition, the corridor,
+   and the way out to contact — and `src/journey/route.ts` is the description
+   of the camera that walks it. What is configurable here is only what is said
+   along the way; the route itself is not a setting.
+
+   The plates are built from the anchors by `npm run assets:plates` and land in
+   `public/media/` under fixed names. A missing plate falls back to a quiet
+   gradient in the same palette, so the route is complete at every stage of
+   asset production like everything else on the page.
+
+   Note on the screens in those plates: the SHAY panel in 01 and the TIMEMATIC
+   screen in 02 and 03 are part of the artwork, not slots. When a real capture
+   of either site exists, it belongs in a re-rendered anchor rather than
+   composited over one — the TIMEMATIC screen is seen at an angle in 03, and a
+   flat screenshot pasted onto it would read as a sticker on the marble.
+   -------------------------------------------------------------------------- */
+
+export const route = {
+  /** Which entry in `projects` the camera stops in front of. */
+  projectId: 'watch',
+  /**
+   * What the corridor's brass plaques say, in the language the site is written
+   * in. The English is the engraving in the artwork and is shown at the size
+   * brass is engraved; the order is the order the plaques are passed.
+   */
+  disciplines: [
+    { title: 'אסטרטגיה', plaque: 'STRATEGY' },
+    { title: 'עיצוב', plaque: 'DESIGN' },
+    { title: 'חוויה', plaque: 'EXPERIENCE' },
+  ],
+};
+
+/* --------------------------------------------------------------------------
    Selected works
    -------------------------------------------------------------------------- */
 

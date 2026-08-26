@@ -1,0 +1,377 @@
+/* ==========================================================================
+   The route past the first platform.
+
+   Physical properties inside the stage: the plates are placed by maths shared
+   with src/journey/route.ts, and logical properties would mirror them under
+   the RTL document. The type on top is laid out logically, like the rest of
+   the site.
+   ========================================================================== */
+
+.promenade {
+  position: relative;
+  /* Warm marble at both ends. The only place this is seen is the strip the
+     sticky stage uncovers as it is scrolled past — and a strip of the wrong
+     colour there is what turns a continuing world into a section boundary. */
+  background: linear-gradient(180deg, #efe7d8 0%, #f2ead9 92%, #f5efe2 100%);
+  /* Five legs and a long stop. Roughly a third of it is the camera standing
+     still in front of the work, which is what that anchor is for. */
+  --promenade-h: 980svh;
+}
+
+.promenade.is-animated {
+  block-size: var(--promenade-h);
+}
+
+.promenade__stage {
+  position: relative;
+}
+
+.promenade.is-animated .promenade__stage {
+  position: sticky;
+  inset-block-start: 0;
+  block-size: 100vh;
+  block-size: 100svh;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   A leg.
+
+   Static flow (reduced motion / no JS): five stacked full scenes, in order.
+   Animated: all five fill the sticky stage, earlier ones above later ones,
+   and each is passed through rather than swapped for.
+   -------------------------------------------------------------------------- */
+
+.leg {
+  position: relative;
+  min-block-size: 100vh;
+  min-block-size: 100svh;
+  overflow: hidden;
+  /* Matches the marble in the plates, so a slow connection never flashes a
+     colour that is not in this world. */
+  background-color: #e7dccb;
+  --adapt-in: 0;
+  --adapt-out: 0;
+}
+
+.promenade.is-animated .leg {
+  position: absolute;
+  inset: 0;
+  min-block-size: 0;
+}
+
+/* The only thing the camera moves. Everything else in a leg — the washes, the
+   words — belongs to the lens and stays the size it was written at. */
+.leg__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+
+.leg__plate,
+.leg__blank {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  /* Pins the plate's aim to the same point of the frame on every viewport, so
+     a narrow window crops the artwork without ever moving the thing the camera
+     is travelling toward. */
+  object-position: var(--aim-x, 50%) var(--aim-y, 50%);
+}
+
+/* Quiet painted stand-in until a plate exists at its path. */
+.leg__blank {
+  background:
+    radial-gradient(ellipse 54% 40% at var(--aim-x, 50%) var(--aim-y, 50%), rgba(255, 236, 200, 0.7), transparent 66%),
+    linear-gradient(180deg, #cfdcea 0%, #e6dcc8 52%, #efe7d6 100%);
+}
+
+/* Barely there: enough to hold white type off bright marble, not enough to
+   take the sunset out of the artwork. */
+.leg__tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(22, 34, 54, 0.16) 0%, transparent 24%, transparent 62%, rgba(28, 20, 8, 0.14) 100%);
+}
+
+/* --------------------------------------------------------------------------
+   Thresholds — what the eye does at a doorway.
+
+   Not a transition between pictures: the moment of being unable to see, which
+   is what actually happens crossing from a low sun into a marble hall, or out
+   of a shaded corridor into the sun. The plate swap happens underneath it, so
+   the route passes through architecture rather than dissolving between views.
+   -------------------------------------------------------------------------- */
+
+.leg__adapt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  will-change: opacity;
+}
+
+.leg__adapt--out {
+  opacity: var(--adapt-out);
+}
+
+.leg__adapt--in {
+  opacity: var(--adapt-in);
+}
+
+/* Into shade, under an arch: the frame closes down to a warm dark with the
+   doorway's own light still in the middle of it. */
+.leg__adapt--shadow {
+  /* A hair short of opaque, and warm rather than black: a ghost of the
+     architecture stays in it, which is what keeps this a threshold the reader
+     passes through rather than a cut. */
+  background: radial-gradient(
+    ellipse 86% 96% at var(--aim-x, 50%) var(--aim-y, 50%),
+    rgba(44, 27, 11, 0.06) 0%,
+    rgba(36, 22, 9, 0.52) 15%,
+    rgba(24, 14, 6, 0.93) 38%,
+    rgba(15, 8, 3, 0.985) 100%
+  );
+}
+
+/* Out into the sun: the light arrives before the picture does. */
+.leg__adapt--glare {
+  background: radial-gradient(
+    ellipse 94% 104% at var(--aim-x, 50%) var(--aim-y, 50%),
+    rgba(255, 249, 236, 0.99) 0%,
+    rgba(255, 240, 212, 0.92) 34%,
+    rgba(248, 224, 188, 0.52) 100%
+  );
+}
+
+/* --------------------------------------------------------------------------
+   The stop.
+
+   The camera has halted in front of TIMEMATIC's screen, so this is the one
+   place on the route where something is read. It sits low, over the hall's
+   floor medallion — the work is on the wall above it and is never covered.
+   -------------------------------------------------------------------------- */
+
+.stop {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: clamp(1.75rem, 5svh, 4rem);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+  padding-inline: 1.25rem;
+  /* Not a focus stop for a place nobody has reached yet. */
+  visibility: hidden;
+  will-change: transform, opacity;
+}
+
+.stop.is-available,
+.promenade:not(.is-animated) .stop {
+  visibility: visible;
+}
+
+.stop__scrim {
+  position: absolute;
+  inset-block: -42% -30%;
+  inset-inline: -6%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 54% at 50% 50%, rgba(10, 19, 35, 0.62) 0%, transparent 72%),
+    radial-gradient(ellipse 68% 78% at 50% 52%, rgba(10, 19, 35, 0.34) 0%, transparent 78%);
+}
+
+.stop__eyebrow {
+  font-size: var(--step-small);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: rgba(240, 214, 160, 0.92);
+}
+
+.stop__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 1.2rem + 2.6vw, 3.1rem);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  color: #fdf8ec;
+  text-shadow: 0 2px 26px rgba(10, 18, 34, 0.6);
+}
+
+.stop__sub {
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 0.86rem + 0.4vw, 1.15rem);
+  letter-spacing: 0.22em;
+  color: rgba(238, 210, 156, 0.9);
+}
+
+.stop__lede {
+  margin-block-start: 0.85rem;
+  max-inline-size: 62ch;
+  font-size: var(--step-body);
+  line-height: 1.75;
+  color: rgba(250, 247, 240, 0.94);
+  text-shadow: 0 1px 16px rgba(10, 20, 40, 0.7);
+}
+
+.stop__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-block-start: 1.6rem;
+  min-block-size: 44px;
+  padding: 0.8rem 1.8rem;
+  border: 1px solid rgba(222, 178, 100, 0.85);
+  border-radius: 2px;
+  background: rgba(18, 30, 52, 0.36);
+  backdrop-filter: blur(6px);
+  color: #fdf6e6;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition:
+    background-color 0.35s var(--ease-out),
+    border-color 0.35s var(--ease-out);
+}
+
+.stop__live:hover,
+.stop__live:focus-visible {
+  background: rgba(18, 30, 52, 0.54);
+  border-color: #ecc678;
+}
+
+/* --------------------------------------------------------------------------
+   The corridor.
+
+   Its walls carry STRATEGY, DESIGN and EXPERIENCE on brass, out at the edges
+   of the frame. This is the same three in the site's own language, set low
+   over the floor where the plaques are not.
+   -------------------------------------------------------------------------- */
+
+.hall {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: clamp(3.5rem, 15svh, 9rem);
+  z-index: 4;
+  padding-inline: 1.25rem;
+  will-change: transform, opacity;
+}
+
+.hall__scrim {
+  position: absolute;
+  inset-block: -70% -40%;
+  inset-inline: -6%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 52% at 50% 52%, rgba(26, 13, 3, 0.66) 0%, transparent 72%),
+    radial-gradient(ellipse 62% 76% at 50% 54%, rgba(26, 13, 3, 0.38) 0%, transparent 80%);
+}
+
+.hall__list {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: clamp(1.5rem, 5vw, 4.25rem);
+  list-style: none;
+}
+
+.hall__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hall__he {
+  font-family: var(--font-display-he);
+  font-size: clamp(1.15rem, 0.9rem + 1.1vw, 1.75rem);
+  font-weight: 500;
+  color: #fdf6e6;
+  text-shadow: 0 2px 20px rgba(24, 12, 2, 0.72);
+}
+
+/* The brass the corridor already has, at the size brass is engraved. */
+.hall__plaque {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  color: rgba(240, 208, 150, 0.94);
+  text-shadow: 0 1px 12px rgba(24, 12, 2, 0.8);
+}
+
+/* --------------------------------------------------------------------------
+   Horizon hand-off into the contact scene, on the pattern the first act ends
+   with: the world stays visible through it and the gold keeps the route's
+   thread alive across the boundary.
+   -------------------------------------------------------------------------- */
+
+.promenade::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 12svh;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 38% 70% at 50% 100%, rgba(214, 168, 92, 0.24), transparent 74%),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(240, 233, 220, 0.18) 46%,
+      rgba(240, 233, 220, 0.5) 78%,
+      rgba(243, 236, 223, 0.7) 100%
+    );
+}
+
+@media (max-width: 860px) {
+  .promenade {
+    --promenade-h: 780svh;
+  }
+
+  .stop {
+    inset-block-end: clamp(2.5rem, 7svh, 5rem);
+  }
+
+  .stop__lede {
+    max-inline-size: 32ch;
+  }
+
+  .hall__list {
+    gap: 1.1rem 2rem;
+  }
+}
+
+/* Reduced motion: five calm scenes, composed once. Nothing is washed out by a
+   threshold nobody is crossing, and nothing waits on a scroll position. */
+@media (prefers-reduced-motion: reduce) {
+  .leg__adapt {
+    display: none;
+  }
+
+  .stop,
+  .hall {
+    position: relative;
+    inset: auto;
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+  }
+
+  .leg {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding-block-end: clamp(2.5rem, 8svh, 5rem);
+  }
+}
