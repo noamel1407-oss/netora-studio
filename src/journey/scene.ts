@@ -312,6 +312,15 @@ export type Camera = {
 const BG_DEPTH = 21000;
 
 export function cameraAt(travel: number, scene: Scene): Camera {
+  /*
+   * Act two. Nothing in act one can reach this line: its own travel is
+   * `travelOf()`, which is clamped to [0, 1] at source, so the branch is
+   * unreachable from everything that existed before it. The body below is
+   * untouched — that is the point of putting the fork here rather than
+   * threading a mode through it.
+   */
+  if (travel > 1) return routeCameraAt(travel, scene);
+
   const t = clamp01(travel);
   /* The approach's own progress: it completes at the arrival and stays there,
      so the hold and the drift beyond it are a pure forward push. */
@@ -459,4 +468,183 @@ const SAMPLES = spline(PATH, 130);
 /** The rail, scaled into a given viewport. Sampled once per resize. */
 export function pathFor(scene: Scene): Vec3[] {
   return SAMPLES.map((p) => ({ x: p.x * scene.sx, y: p.y * scene.sy, z: p.z }));
+}
+
+/* ==========================================================================
+   ACT TWO — the route past the platform.
+
+   One world, one camera, one path. Everything below extends the space above
+   rather than standing beside it: the same Vec3 coordinates, the same
+   `project()`, the same `cameraAt()`. What changes is only that the camera
+   keeps going after it has reached SHAY.
+
+   Act one occupies travel [0, 1] and is not touched by any of this. Act two is
+   travel [1, 2]. `cameraAt` branches on that and act one's branch is the code
+   above, unchanged, still reached through a `clamp01` that makes the branch
+   unreachable from act one's own domain.
+
+   ## Where the numbers come from
+
+   The five canonical anchors under `reference/transitions/` constrain this
+   geometry; they do not uniquely solve it. What they fix, and what was read
+   off them by `npm run assets:anchors`:
+
+   - **Eye height and ground.** Every anchor's aim sits at 0.47–0.55 of its own
+     frame: one eye level in five places. The ground is act one's own plaza
+     plane, y = 900.
+   - **The stop's composition (ref 02).** The display spans 0.273 of the frame
+     and the hall's walls reach its edges. Putting the far wall at depth −2000
+     (k = 1/3) makes the frame 4320 units wide there, so the display is 1180
+     wide and the hall half-width is 2160.
+   - **The corridor's opening (ref 02).** Its lit far end sits at x 0.747,
+     y 0.556 of frame — 1067 units right of centre and 151 below eye level.
+   - **The corridor's section (ref 04).** Its arch is 0.66 wide-to-tall. With
+     its centre 151 below eye level and its floor on the ground plane, that is
+     989 wide by 1498 tall — and that aspect was measured independently of the
+     numbers that produced it, which is the one real cross-check here.
+   - **The corridor's length (ref 04).** Its far arch reads 252px, so it stands
+     2925 units ahead of that anchor's camera.
+
+   Everything else is the simplest geometry that reproduces those compositions,
+   and is provisional until the greybox renders are compared against the
+   anchors.
+   ========================================================================== */
+
+/** The ground act one's plaza already stands on. */
+export const GROUND = 900;
+
+/**
+ * The architecture, as world-space boxes. Greybox: these are masses and
+ * openings, not buildings. Depths run away from the camera, so z decreases.
+ */
+export const ACT2 = {
+  /** The plaza the route comes down onto after leaving the platform. */
+  plaza: { from: -7600, to: -14500 },
+
+  /** TIMEMATIC's front. One opening, on the approach axis. */
+  facade: {
+    z: -14500,
+    x: [-3000, 3000] as [number, number],
+    top: -3800,
+    door: { x: [-700, 700] as [number, number], top: -900 },
+  },
+
+  /** The hall behind it. */
+  hall: { from: -14500, to: -19000, x: [-2160, 2160] as [number, number], top: -2200 },
+
+  /**
+   * The far wall of the hall, and the only two things in it: a display that
+   * cannot be passed through, and an opening that can. This is where "the
+   * screens are surfaces" stops being a rule and becomes geometry.
+   */
+  wall: { z: -19000 },
+  display: { x: [-590, 590] as [number, number], y: [-560, 440] as [number, number] },
+  /** The pier between them is what ref 02 puts a statue and a pilaster on. */
+  opening: { x: [806, 1795] as [number, number], top: -598 },
+
+  /** The corridor, running parallel to the approach — see the yaw note below. */
+  corridor: { from: -19000, to: -22300, x: [806, 1795] as [number, number], top: -598, bays: 5 },
+
+  /** Past its far arch: the terrace, and the thing the route ends at. */
+  terrace: { from: -22300, to: -26400 },
+  contact: { z: -24800, x: [700, 2100] as [number, number], top: -700 },
+};
+
+/**
+ * ## The yaw question
+ *
+ * Act one's `project()` has no rotation term at all, so this camera can dolly
+ * and truck but cannot turn. That limitation is not allowed to decide the
+ * route, so it was tested against the anchors rather than assumed.
+ *
+ * A plane at constant z, seen by a camera that only translates, always
+ * projects to an axis-aligned rectangle at uniform scale — so if the camera
+ * had turned between anchors 02 and 03, TIMEMATIC's display would be a
+ * trapezoid in 03, taller on its near side. Measured over 547 columns it is
+ * not: its top edge slopes −1.8° and its two ends differ in height by 5.9%.
+ * Which sounds like something, until the same measurement runs on anchor 02,
+ * where the camera is provably square to the wall — and finds −2.0° and 5.1%.
+ *
+ * So the renders carry about two degrees and five per cent of their own
+ * imprecision, and 03's departure from square is inside it. The anchors are
+ * **consistent with a lateral truck and no yaw**, and are not precise enough
+ * to prove a small yaw either way. That is why the corridor here runs parallel
+ * to the approach and is entered by trucking sideways — which is also exactly
+ * what 02 and 03 show, the display sliding left as the corridor opens right.
+ *
+ * This is a hypothesis the greybox exists to falsify. If a parallel corridor
+ * cannot put its far end where anchor 03 puts it, yaw goes in — applied only
+ * for travel > 1, with act one's projection provably untouched.
+ */
+
+/** Camera keyframes, in world position. `t` is journey travel, 1 → 2. */
+type Key = { t: number; x: number; z: number };
+
+const ROUTE_KEYS: Key[] = [
+  /* Exactly where act one leaves the camera: cameraAt(1) is x −492, z 4785,
+     and a camera's world position is the negative of its dolly. Act one eases
+     out to zero velocity, so act two picks up from rest and no join is felt. */
+  { t: 1.0, x: 492, z: -4785 },
+  /* Down onto the plaza and across it, lining up on the entrance. */
+  { t: 1.22, x: 380, z: -8600 },
+  { t: 1.38, x: 0, z: -12600 },
+  /* Through the facade's opening. */
+  { t: 1.48, x: 0, z: -14900 },
+  /* The stop: square to the display, 2000 in front of it. */
+  { t: 1.58, x: 0, z: -17000 },
+  { t: 1.74, x: 0, z: -17000 },
+  /* Past it — sideways. The display is never in front of a moving camera. */
+  { t: 1.86, x: 1300, z: -18400 },
+  /* Into the corridor and down it. */
+  { t: 1.92, x: 1300, z: -19700 },
+  { t: 1.97, x: 1300, z: -21600 },
+  /* Out of the far arch onto the terrace. */
+  { t: 2.0, x: 1400, z: -23400 },
+];
+
+/** The stop, as journey travel. Nothing moves between these. */
+export const ROUTE_STOP: [number, number] = [1.58, 1.74];
+
+/** Act two's own progress, mapped onto the journey's travel. */
+export const routeTravelOf = (progress: number) => 1 + clamp01(progress);
+
+function keyframeAt(t: number): { x: number; z: number } {
+  const at = clamp(t, ROUTE_KEYS[0].t, ROUTE_KEYS[ROUTE_KEYS.length - 1].t);
+
+  for (let i = 1; i < ROUTE_KEYS.length; i += 1) {
+    const a = ROUTE_KEYS[i - 1];
+    const b = ROUTE_KEYS[i];
+    if (at > b.t) continue;
+    /* A held pair is a held camera: no easing through a stop. */
+    if (b.t === a.t || (a.x === b.x && a.z === b.z)) return { x: a.x, z: a.z };
+    const k = smooth((at - a.t) / (b.t - a.t));
+    return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k };
+  }
+
+  const last = ROUTE_KEYS[ROUTE_KEYS.length - 1];
+  return { x: last.x, z: last.z };
+}
+
+/**
+ * The camera on act two's stretch. Same units, same meaning, same projection
+ * as act one — `camera.z` is the dolly and a camera's world position is its
+ * negative, which is why the keyframes above read as places rather than as
+ * amounts.
+ */
+function routeCameraAt(travel: number, scene: Scene): Camera {
+  const at = keyframeAt(travel);
+  const z = -at.z;
+  const x = -at.x * scene.sx;
+
+  /* Act one leaves the lens tilted down 28px; the route levels it off as it
+     crosses the plaza and holds level from there, because everything after is
+     architecture seen straight on. */
+  const tiltY = -28 * scene.sy * (1 - smooth(clamp01((travel - 1) / 0.28)));
+
+  /* The city matte is left behind rather than dollied into: past act one the
+     camera is inside architecture that occludes it, and the projection would
+     divide by nothing once the dolly reaches the backdrop's own depth. */
+  const held = cameraAt(1, scene);
+
+  return { t: 1, z, x, tiltY, vp: scene.vp, bg: { ...held.bg, y: tiltY } };
 }

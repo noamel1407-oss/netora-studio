@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
-import { cameraAt, travelOf } from '../journey/scene';
-import { useJourney } from '../journey/progress';
+import { cameraAt } from '../journey/scene';
+import { useJourneyTravel } from '../journey/progress';
 import { useScene } from '../journey/useScene';
 import { world } from '../site.config';
 import './CityReveal.css';
@@ -46,16 +46,16 @@ export function CityReveal({ statement = true, dolly = false, children }: Props)
   }, [scene, dolly]);
 
   const onScroll = useCallback(
-    (progress: number) => {
+    (travel: number) => {
       const bg = bgRef.current;
       if (!bg) return;
-      const { bg: camera } = cameraAt(travelOf(progress), scene);
+      const { bg: camera } = cameraAt(travel, scene);
       bg.style.transform = `translate3d(${camera.x.toFixed(2)}px, ${camera.y.toFixed(2)}px, 0) scale(${camera.scale.toFixed(4)})`;
     },
     [scene],
   );
 
-  useJourney(onScroll, dolly);
+  useJourneyTravel(onScroll, dolly);
 
   return (
     <div className={`city${bgMissing ? ' city--no-image' : ''}`}>

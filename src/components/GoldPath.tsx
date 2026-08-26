@@ -8,13 +8,12 @@ import {
   project,
   railIntensity,
   railOf,
-  travelOf,
   type Camera,
   type Projected,
   type Scene,
   type Vec3,
 } from '../journey/scene';
-import { useJourney } from '../journey/progress';
+import { journeyTravel, useJourney } from '../journey/progress';
 import './GoldPath.css';
 
 type Props = { scene: Scene };
@@ -60,7 +59,10 @@ export function GoldPath({ scene }: Props) {
       const near = nearRef.current;
       if (!far || !near) return;
 
-      const camera = cameraAt(travelOf(progress), scene);
+      /* The rail belongs to act one, but the camera it is drawn through
+         belongs to the whole journey — otherwise it hangs in the air behind
+         a camera that has walked away from it. */
+      const camera = cameraAt(journeyTravel(), scene);
 
       /* Present under the statement, dominant once it has gone — but not by
          dimming the whole rail evenly. The artwork already has a broad smear

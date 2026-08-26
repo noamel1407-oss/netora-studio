@@ -2,9 +2,10 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 
 import { GoldPath } from './GoldPath';
 import { ProjectPlatform } from './ProjectPlatform';
+import { RouteGreybox } from './RouteGreybox';
 import { ProjectStation } from './ProjectStation';
-import { ARRIVAL_PROGRESS, cameraAt, travelOf } from '../journey/scene';
-import { publishJourney, useJourney } from '../journey/progress';
+import { ARRIVAL_PROGRESS, cameraAt } from '../journey/scene';
+import { publishJourney, useJourneyTravel } from '../journey/progress';
 import { useScene } from '../journey/useScene';
 import './CityTravel.css';
 
@@ -51,13 +52,16 @@ export function CityTravel({ still }: Props) {
   }, [scene]);
 
   const onScroll = useCallback(
-    (progress: number) => {
+    (travel: number) => {
       const root = rootRef.current;
       const stage = stageRef.current;
       const world = worldRef.current;
       if (!root || !stage || !world) return;
 
-      const camera = cameraAt(travelOf(progress), scene);
+      /* Journey travel, not act one's progress: the camera keeps going past
+         the platform, and freezing it here is what would turn the route into
+         a second scene rather than more of this one. */
+      const camera = cameraAt(travel, scene);
 
       /* The platform comes out of the city's air as the statement clears the
          frame — after that everything it does is distance, not opacity.
@@ -72,7 +76,7 @@ export function CityTravel({ still }: Props) {
     [scene],
   );
 
-  useJourney(onScroll);
+  useJourneyTravel(onScroll);
 
   /* Without a scrubbed timeline nothing publishes a position, so the scene is
      placed at its arrival once and stays there. */
@@ -89,6 +93,10 @@ export function CityTravel({ still }: Props) {
           <div className="travel__world" ref={worldRef}>
             <div className="travel__veil" />
             <ProjectPlatform scene={scene} />
+            {/* Act two's architecture stands in this same subtree, placed by
+                the same projection, because it is the same world — the camera
+                simply keeps going until it reaches it. */}
+            <RouteGreybox scene={scene} />
           </div>
         </div>
 

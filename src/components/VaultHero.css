@@ -5,10 +5,22 @@
      — and a strip of near-black there is what turns a continuing world into a
      section boundary. */
   background: linear-gradient(180deg, #02060f 0%, #02060f 88%, #f0eadd 99%);
-  /* The whole journey — door, arrival, statement, and the travel out to the
-     first platform — is one scrubbed container, so this is its total length.
-     Roughly a third is the vault; the rest is the city continuing. */
-  --journey-h: 1080svh;
+  /*
+   * The journey is one scrubbed container in two acts, and the split is here
+   * because act one's whole choreography is positioned as a *fraction* of the
+   * container. Its own length is what must not change — so it is stated as a
+   * length, act two's is stated beside it, and the container is their sum.
+   * Everything that used to be a percentage of the container and belongs to
+   * act one is now a fraction of `--act-one-h` instead, which is what keeps it
+   * standing still when act two gets longer or shorter.
+   *
+   * Both are plain lengths on purpose: a custom property holding a `calc()` is
+   * handed back to `getComputedStyle` unresolved, and the share act one owns
+   * is read from these two at runtime.
+   */
+  --act-one-h: 1080svh;
+  --act-two-h: 900svh;
+  --journey-h: calc(var(--act-one-h) + var(--act-two-h));
 }
 
 .journey.is-animated {
@@ -81,11 +93,11 @@
 /* Anchors land on the journey's own positions rather than on its edges: the
    statement where it is readable, the work where the platform is arrived at. */
 .journey.is-animated .journey__anchor--about {
-  inset-block-start: 31%;
+  inset-block-start: calc(0.31 * var(--act-one-h));
 }
 
 .journey.is-animated .journey__anchor--work {
-  inset-block-start: 88%;
+  inset-block-start: calc(0.88 * var(--act-one-h));
 }
 
 .journey__anchor--work {
@@ -168,7 +180,10 @@
 
 @media (max-width: 860px) {
   .journey {
-    --journey-h: 860svh;
+    --act-one-h: 860svh;
+    /* The same ratio, so the share act one owns is one number on every
+       viewport and the mapping below never has to care which one it is on. */
+    --act-two-h: 717svh;
   }
 }
 
