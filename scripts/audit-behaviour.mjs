@@ -106,59 +106,6 @@ check(
   (await page.locator('.monitor__well a, .pscreen a').count()) === 0,
 );
 
-// --- the route past the platform -----------------------------------------
-// Five canonical anchors, in order, and never a camera that goes through a
-// portfolio screen. Under reduced motion they are five composed scenes, which
-// is the state this audit runs in.
-// The plates are lazy, and under reduced motion the legs are five scenes in
-// flow — so walk down to them the way a reader would before asking whether
-// they arrived.
-await page.locator('.leg[data-anchor="01"]').scrollIntoViewIfNeeded();
-await settleScroll(400);
-for (const id of ['02', '03', '04', '05']) {
-  await page.locator(`.leg[data-anchor="${id}"]`).scrollIntoViewIfNeeded();
-  await settleScroll(250);
-}
-await page.waitForFunction(
-  () => [...document.querySelectorAll('.leg__plate')].every((img) => img.complete),
-  null,
-  { timeout: 15000 },
-);
-
-const anchors = await page.$$eval('.leg', (legs) => legs.map((leg) => leg.dataset.anchor));
-check('the route renders its five canonical anchors in order', anchors.join(' ') === '01 02 03 04 05', anchors.join(' '));
-check(
-  'every leg stands on its plate',
-  (await page.locator('.leg__plate').count()) === 5 && (await page.locator('.leg__blank').count()) === 0,
-);
-check(
-  'no plate is a broken image',
-  await page.$$eval('.leg__plate', (imgs) => imgs.every((img) => img.naturalWidth > 0)),
-);
-check('the route is described for a screen reader', (await page.locator('#route-title').count()) === 1);
-
-// The stop: the camera halts and the project is presented. The work itself is
-// on the wall in the artwork, so what belongs here is the caption to it.
-const stop = page.locator('.leg[data-anchor="02"] .stop');
-check('the portfolio stop presents its project', (await stop.locator('.stop__title').innerText()) === 'TIMEMATIC');
-check('the stop is readable where the camera has stopped', await stop.locator('.stop__title').isVisible());
-check(
-  'the stop hides its live link while no URL exists',
-  (await stop.locator('.stop__live').count()) === 0,
-);
-check('the stop puts no second screen in front of the work', (await stop.locator('img, video').count()) === 0);
-
-// The corridor names the studio's three disciplines, as its walls do.
-const hall = page.locator('.leg[data-anchor="04"] .hall');
-check('the corridor names the three disciplines', (await hall.locator('.hall__item').count()) === 3);
-check('they are given in the language the site is written in', (await hall.locator('.hall__he').first().innerText()) === 'אסטרטגיה');
-
-// The one rule the route cannot break: a website is a surface, never a door.
-check(
-  'no portfolio screen is a link or a doorway',
-  (await page.locator('.leg a[href*="shaijewelry"], .leg__plate a').count()) === 0,
-);
-
 // --- showcases -----------------------------------------------------------
 const showcases = await page.locator('.showcase').count();
 check('the terrace keeps the project the route has not reached', showcases === 1, `count=${showcases}`);

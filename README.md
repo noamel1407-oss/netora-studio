@@ -5,14 +5,7 @@ Hebrew, right-to-left, single-scroll marketing site built as one continuous jour
 > closed vault → scroll → the vault opens → we pass through the doorway → a white
 > architectural world at sunset → the statement → the city keeps going → a gold route
 > lifts off the plaza and leads out to a floating marble platform with the first
-> project's computer on it → out along the promenade to TIMEMATIC, where the camera
-> stops in front of the work → out of the hall by its corridor → and through the
-> corridor to the contact pavilion.
-
-The second half of that is fixed by five canonical anchors under
-`reference/transitions/`, followed in order. The portfolio screens along the way are
-surfaces, not portals: the camera never travels into a website, and the way out of
-each building is its own architecture. See **[The route past the platform](#the-route-past-the-platform)**.
+> project's computer on it → a light contact scene.
 
 Built with Vite + React + TypeScript and GSAP ScrollTrigger. All page content is ordinary
 semantic HTML; every visual layer (vault video, world backdrops, screen recordings) is a
@@ -42,7 +35,6 @@ Everything lives in `public/media/` under fixed names — no code changes needed
 | World: marble terrace behind the laptops | `public/media/world-works.webp` | **in** |
 | World: arch + pool beside the form | `public/media/world-contact.webp` | **in** |
 | Jewellery site still | `public/media/shay-jewellery-poster.jpg` | **in** (generated placeholder) |
-| The route's five plates | `public/media/route-0*.webp` | **in** — built from the anchors by `npm run assets:plates` |
 | Watch site still | `public/media/watch-project.jpg` | missing → typographic cover |
 | Watch site recording | `public/media/watch-project.mp4` | missing → play button hidden |
 | SHAY opening frame (on the platform's screen) | `public/media/shay-jewellery-poster.jpg` | **in** (generated placeholder — swap for a real capture) |
@@ -87,20 +79,13 @@ the "לצפייה באתר" button (the watch project ships as `null` until its 
 | Journey choreography (timings, scale, stagger) | `src/components/VaultHero.tsx` + `src/journey/scene.ts` |
 | The still on the platform's screen, and the link off it | `src/site.config.ts` → `journey.shayShot`, `journey.liveUrl` |
 | Camera, gold route, platform placement | `src/journey/scene.ts` |
-| The route past the platform: legs, aims, thresholds, the stop | `src/journey/route.ts` |
-| What is said along the route (the stop, the corridor's disciplines) | `src/site.config.ts` → `route` |
 
 ## How the journey works
 
-The journey is two scrubbed acts, and the seam between them is a place rather than a
-boundary: the first ends on the platform SHAY stands on, the second picks the route up at
-SHAY's forecourt and carries it to TIMEMATIC, through the corridor, and out to contact.
-Each act is one tall section with a sticky full-viewport stage and exactly one
-ScrollTrigger; nothing else on the page has one.
-
-`VaultHero` is the first (`--journey-h`, 1080svh), and scroll position drives everything in
-it — the door, the arrival in the city, the statement, and the travel out to the first
-project. Everything is a position on its timeline rather than something that starts when
+`VaultHero` renders one tall section (`--journey-h`, 1080svh) with a sticky full-viewport
+stage, and scroll position drives everything in it — the door, the arrival in the city, the
+statement, and the travel out to the first project. There is exactly one ScrollTrigger on
+the page. Everything is a position on its timeline rather than something that starts when
 something else finishes, which is what removes the seam a reader would otherwise feel
 between "the hero" and "the work". All of it runs in reverse when scrolled back, including
 the route drawing itself back in.
@@ -215,91 +200,6 @@ hit. It lives outside the scene's `aria-hidden` layer and stays
 destination the reader has not reached, and the computer itself is never the
 click target.
 
-### The route past the platform
-
-<a id="the-route-past-the-platform"></a>
-
-Act two. Five canonical anchors under `reference/transitions/` fix this stretch, and
-their roles are not open to reinterpretation — the README beside them states each one.
-They are followed in numeric order and in no other:
-
-| | |
-| --- | --- |
-| 01 | SHAY exit → the exterior route toward TIMEMATIC |
-| 02 | the TIMEMATIC portfolio stop — the camera halts while the work is shown |
-| 03 | the TIMEMATIC exit composition: screen left, the real corridor right |
-| 04 | inside the corridor — its canonical camera position and architecture |
-| 05 | the corridor exit → the exterior route out to contact |
-
-`src/journey/route.ts` is the only description of the camera that walks them, and
-`Promenade` is the part that has to be a component: a tall scrubbed container with a
-sticky stage, five plates stacked in it, and one scroll position driving all of them.
-
-**The screens are surfaces.** SHAY's display panel in 01 and TIMEMATIC's screen in 02
-and 03 are glass mounted on marble, and the camera never travels into either. The way
-out of each building is its architecture — the plaza in 01, the corridor in 03 — and
-that is what makes this a journey through a place rather than a sequence of websites
-opening into each other. The stop at 02 is the one leg that looks straight at a screen,
-and it looks at it because it has halted in front of it. `screenBreaches()` asserts this
-on mount in development and again in `npm run audit:route`, because nudging an aim a few
-points toward a nicer composition is exactly how a screen becomes a door.
-
-**Every number is measured, not chosen.** `npm run assets:anchors` reads the anchors and
-prints what it finds; the numbers are moved across by hand. Two of its findings do real
-work:
-
-- *The rails converge on where each leg aims.* Traced row by row, the gold inlay in 01
-  runs from x≈0.49 at the bottom of the frame, bows out to x≈0.41 and comes back to the
-  TIMEMATIC doorway at x≈0.42. The corridor's floor lines in 04 converge on x≈0.50. Both
-  sets of rails in 05 bend toward the contact rotunda. No leg aims at a composition; each
-  aims where the road in its own frame already goes.
-- *The camera is at one height throughout.* Every aim lands between 0.468 and 0.546 of
-  its own frame — the same eye level in five different places. That is what makes five
-  pictures one walk, and why nothing here tilts.
-
-**The plates are stacked, not swapped.** Each leg sits under the one before it. A leg
-pushes toward the opening it leaves through and is only dropped once it is two or three
-times the frame and the only thing left of it on screen is the inside of that opening —
-which is what the plate underneath is already showing. It is the same rule the vault door
-is handed over by, for the same reason.
-
-**A leg does not move until the plate in front of it has gone.** Otherwise it is a third
-of the way into its push by the time anyone can see it, and the composition its anchor
-fixes is one nobody is ever shown. The audit checks that all five are first seen at 1.00×.
-
-**Thresholds are what the eye does at a doorway**, not a transition between pictures: the
-frame closes to a warm dark under the TIMEMATIC arch and going into the corridor's shade,
-and blows out white coming out of the corridor into the low sun. The plate swap happens
-underneath it. Nothing on this route crossfades in the open except the one move that
-cannot — see below — and that one lasts 0.6% of the container.
-
-**02 → 03 is one room and one continuous move**, so it gets no threshold at all. Both
-anchors show the same hall, so two features appear in both — the screen (centre
-0.498,0.468 → 0.300,0.432) and the corridor's lit far end (0.747,0.556 → 0.690,0.545) —
-and one scale about one origin has to carry both. Solving that pair gives **1.535 about
-(0.867, 0.535)**; checked back against the corridor it lands within 0.007 of frame in x.
-The origin sits just off the right edge at eye level, which is simply where the corridor
-is. That registration is composed on top of leg 03's own push rather than replacing it,
-so the two agree exactly at the swap however far 03 has got, and the camera's velocity
-carries across the seam instead of dipping to zero in the middle of a truck.
-
-**The stop is a stop.** 0.140 of the container — the longest single thing on the route —
-with the plate not moving by a pixel. What moves in that window is the presentation, not
-the camera.
-
-**Nothing draws a route on top of these.** The plates are painted with their own gold
-rails and lit by their own sunset. `GoldPath` exists in act one because the city artwork
-stops short of the floating platform and the road had to be carried the rest of the way;
-here the road is already under the reader's feet in every frame.
-
-**The screens stay part of the artwork.** When a real capture of either site exists it
-belongs in a re-rendered anchor, not composited over one — TIMEMATIC's screen is seen at
-an angle in 03, and a flat screenshot pasted onto it would read as a sticker on the
-marble.
-
-Under `prefers-reduced-motion` the whole act stands down: the same five plates render as
-five calm full-height scenes in the same order, each composed once and never moved.
-
 ### The terrace after it
 
 `SelectedWorks` is what is left once the first project moved into the city: no heading
@@ -310,7 +210,7 @@ Component map:
 
 ```
 Header
-VaultHero            ← act one: sticky stage + its scroll timeline
+VaultHero            ← owns the sticky stage + the single scroll timeline
 ├─ VaultVideo        ← scrub target: seek(progress), mp4/poster + CSS fallback
 └─ CityReveal        ← the world artwork + the statement (the page's <h1>)
    └─ CityTravel     ← the camera: perspective stage + the world it carries
@@ -318,9 +218,6 @@ VaultHero            ← act one: sticky stage + its scroll timeline
       ├─ ProjectPlatform  ← slab, plinth, monitor
       │  └─ ProjectScreen ← the still inside the glass
       └─ ProjectStation   ← the link to the live site, standing on the marble
-Promenade            ← act two: five canonical plates, one camera through them
-                       (the stop's caption and the corridor's disciplines ride
-                        in the frame rather than in the world)
 SelectedWorks
 └─ ProjectShowcase   ← per project: tilt scene, platform, caption, live link
    └─ LaptopMockup   ← silver frame; the screen is whatever is passed in
@@ -388,15 +285,7 @@ Two checks are wired up. Both need the production build running on port 4173
 
 ```bash
 npm run audit:a11y       # axe-core, desktop + mobile + a legal page
-npm run audit:behaviour  # skip link, the route, showcases/fallbacks, live links, form, header flip
-```
-
-`audit:route` needs neither, because the camera in `src/journey/route.ts` is a pure
-function of scroll position — so it walks it and asserts properties of what actually
-comes back:
-
-```bash
-npm run audit:route      # the anchors' order, the stop, no screen is a doorway
+npm run audit:behaviour  # skip link, showcases/fallbacks, live links, form, header flip
 ```
 
 `audit:a11y` currently reports zero violations. Its "needs-review" list is the set of
