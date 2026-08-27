@@ -32,7 +32,8 @@
   #build {
     position: fixed; left: 8px; bottom: 8px; z-index: 2; pointer-events: none;
     font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .06em; color: var(--gold);
+    letter-spacing: .06em; color: var(--gold); line-height: 1.5;
+    white-space: pre;   /* two deliberate lines, never a wrap across the screen */
     background: rgba(12, 27, 51, .72); padding: 5px 7px; border-radius: 3px;
   }
   #build[hidden] { display: none; }
@@ -165,8 +166,8 @@ function showBuild(note) {
   if (!IS_LOCAL) return;
   const el = document.getElementById('build');
   el.hidden = false;
-  el.textContent = `${isPortrait() ? 'contain' : 'cover'} ${boxW}x${boxH}`
-    + ` · ${realResizes} resize${realResizes === 1 ? '' : 's'} · ${buildNote}`;
+  el.textContent = `${isPortrait() ? 'contain' : 'cover'} ${boxW}\u00d7${boxH}`
+    + ` · ${realResizes} resize${realResizes === 1 ? '' : 's'}\n${buildNote}`;
 }
 
 function frameSrc(set, n) {
