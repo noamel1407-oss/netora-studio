@@ -28,8 +28,11 @@
  * — a layer that stopped painting, a z-order that flipped, a fallback that
  * kicked in. It is small enough to commit and exact enough to diff.
  *
- * Full screenshots are kept at a few checkpoints as well, for the case where
- * a number has moved and a person needs to see what it did.
+ * Full screenshots are written at a few checkpoints as well, for the case
+ * where a number has moved and a person needs to see what it did. They are
+ * local only — nothing verifies against them, `state*.json` is what the
+ * comparison reads, and eleven megabytes of PNG is not worth carrying for a
+ * look someone can regenerate with `--capture`.
  *
  * ## Two axes, both stated rather than assumed
  *
