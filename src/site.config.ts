@@ -94,6 +94,30 @@ export const journey = {
 };
 
 /* --------------------------------------------------------------------------
+   The route past the first platform.
+
+   Five canonical anchors under `reference/transitions/` art-direct the stretch
+   that runs from SHAY out to contact — they are measurement and art direction,
+   never images to put on the screen. `npm run assets:anchors` reads them.
+
+   What lives here is only what is *said* along that route. The route itself is
+   geometry and belongs with the rest of the world.
+   -------------------------------------------------------------------------- */
+
+export const route = {
+  /**
+   * What the corridor's brass plaques say, in the language the site is written
+   * in. The English is the engraving in the reference; the order is the order
+   * the plaques are passed.
+   */
+  disciplines: [
+    { title: 'אסטרטגיה', plaque: 'STRATEGY' },
+    { title: 'עיצוב', plaque: 'DESIGN' },
+    { title: 'חוויה', plaque: 'EXPERIENCE' },
+  ],
+};
+
+/* --------------------------------------------------------------------------
    Selected works
    -------------------------------------------------------------------------- */
 

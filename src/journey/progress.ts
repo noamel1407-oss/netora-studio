@@ -1,5 +1,7 @@
 import { useLayoutEffect } from 'react';
 
+import { travelOf } from './scene';
+
 /**
  * One scrubbed journey, one number.
  *
@@ -29,6 +31,65 @@ export function useJourney(apply: Listener, enabled = true) {
     apply(current);
     return () => {
       listeners.delete(apply);
+    };
+  }, [apply, enabled]);
+}
+
+/* --------------------------------------------------------------------------
+   Act two's own clock.
+
+   A second bus rather than a second meaning for the first one. Everything
+   built before this reads `useJourney` and expects 0 → 1 to mean act one from
+   end to end; making that number mean something else once the container grew
+   would be the quiet kind of change that breaks a journey nobody touched.
+   -------------------------------------------------------------------------- */
+
+const routeListeners = new Set<Listener>();
+let route = 0;
+
+export function publishRoute(progress: number) {
+  route = progress;
+  for (const listener of routeListeners) listener(progress);
+}
+
+export const routeProgress = () => route;
+
+/** Runs `apply` on every scrub, and once on mount with the current position. */
+export function useRoute(apply: Listener, enabled = true) {
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    routeListeners.add(apply);
+    apply(route);
+    return () => {
+      routeListeners.delete(apply);
+    };
+  }, [apply, enabled]);
+}
+
+/* --------------------------------------------------------------------------
+   The whole journey, as one number.
+
+   Act one publishes 0 → 1 over its own length and act two publishes 0 → 1 over
+   its own, which is what keeps either of them from redefining the other. But
+   the camera is one camera walking one world, so the thing it reads is the two
+   of them end to end: `travelOf()` saturates at 1 exactly as the route begins
+   at 0, so adding them gives 0 → 1 through act one and 1 → 2 through act two,
+   with no seam and no mode to get wrong.
+   -------------------------------------------------------------------------- */
+
+export const journeyTravel = () => travelOf(current) + route;
+
+/** Runs `apply` with the journey's travel whenever either act moves. */
+export function useJourneyTravel(apply: Listener, enabled = true) {
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    const relay = () => apply(journeyTravel());
+    listeners.add(relay);
+    routeListeners.add(relay);
+    relay();
+    return () => {
+      listeners.delete(relay);
+      routeListeners.delete(relay);
     };
   }, [apply, enabled]);
 }

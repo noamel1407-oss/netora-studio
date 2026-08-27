@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 
-import { PLATFORM, cameraAt, project, travelOf, type Scene } from '../journey/scene';
-import { useJourney } from '../journey/progress';
+import { PLATFORM, cameraAt, project, type Scene } from '../journey/scene';
+import { useJourneyTravel } from '../journey/progress';
 import { journey } from '../site.config';
 import './ProjectStation.css';
 
@@ -36,12 +36,16 @@ export function ProjectStation({ scene }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   const onScroll = useCallback(
-    (progress: number) => {
+    (travel: number) => {
       const root = rootRef.current;
       if (!root) return;
 
-      const t = travelOf(progress);
-      const shown = Math.min(1, Math.max(0, (t - FROM) / (TO - FROM)));
+      /* Act one's clock for the arrival, the journey's for the departure: the
+         route walks away from this platform and the link has to go with it,
+         rather than following the camera into the next building. */
+      const t = Math.min(1, travel);
+      const left = Math.min(1, Math.max(0, (travel - 1) / 0.06));
+      const shown = Math.min(1, Math.max(0, (t - FROM) / (TO - FROM))) * (1 - left);
 
       root.style.opacity = shown.toFixed(3);
       root.classList.toggle('is-available', shown > 0.5);
@@ -68,7 +72,7 @@ export function ProjectStation({ scene }: Props) {
     [scene],
   );
 
-  useJourney(onScroll);
+  useJourneyTravel(onScroll);
 
   if (!journey.liveUrl) return null;
 

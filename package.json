@@ -10,8 +10,13 @@
     "typecheck": "tsc --noEmit",
     "encode:vault": "node scripts/encode-vault.mjs",
     "assets:poster": "node scripts/make-poster.mjs",
+    "assets:anchors": "node scripts/measure-anchors.mjs",
+    "measure:yaw": "node scripts/measure-yaw.mjs",
     "audit:a11y": "node scripts/audit-a11y.mjs",
-    "audit:behaviour": "node scripts/audit-behaviour.mjs"
+    "audit:behaviour": "node scripts/audit-behaviour.mjs",
+    "baseline:capture": "node scripts/baseline-act-one.mjs --capture",
+    "baseline:verify": "node scripts/baseline-act-one.mjs",
+    "compare:anchors": "node scripts/compare-anchors.mjs"
   },
   "dependencies": {
     "gsap": "^3.15.0",
