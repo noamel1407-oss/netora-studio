@@ -156,37 +156,97 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
    -------------------------------------------------------------------------- */
 async function settleAt(page, target) {
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    await page.evaluate((y) => window.scrollTo(0, y), target);
+    /* Asked for and checked in one round trip: `scrollTo` is synchronous, so
+       the interesting case is not "has it happened yet" but "did something
+       move the page afterwards" — which is what the retries are for. Waiting
+       before looking cost three and a half minutes a run and answered a
+       question nobody had asked. */
+    const at = await page.evaluate((y) => {
+      window.scrollTo(0, y);
+      return Math.round(window.scrollY);
+    }, target);
     await page.evaluate(
       () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
     );
-    await page.waitForTimeout(attempt === 0 ? 200 : 140);
-    const at = await page.evaluate(() => Math.round(window.scrollY));
-    if (Math.abs(at - target) <= 1) return at;
+    if (Math.abs(at - target) <= 1) {
+      const after = await page.evaluate(() => Math.round(window.scrollY));
+      if (Math.abs(after - target) <= 1) return after;
+    }
+    await page.waitForTimeout(140);
   }
   return page.evaluate(() => Math.round(window.scrollY));
 }
 
 /**
- * The scrubbed timeline trails the scroll position by a fraction of a second,
- * and it approaches asymptotically — so "wait long enough" is a guess that is
- * wrong often enough to make a baseline useless. A first pass at this compared
- * runs after a fixed delay and produced forty differences on an unchanged
- * build, every one of them the tail of that easing: a rail at 0.14 against
- * 0.15, a scrim at 0.39 against 0.44, on frames that were pixel-identical.
+ * Waiting for the journey to arrive, rather than for a reading to repeat.
  *
- * So the state is read until it stops moving instead. Two consecutive reads
- * that agree mean the timeline has arrived, whatever the machine was doing.
+ * The scrubbed timeline trails the scroll position by a fraction of a second
+ * and approaches asymptotically, so "wait long enough" is a guess that is
+ * wrong often enough to make a baseline useless: a first pass compared runs
+ * after a fixed delay and produced forty differences on an unchanged build,
+ * every one the tail of that easing on frames that were pixel-identical.
+ *
+ * Reading until two readings agreed replaced one guess with another. Headless
+ * Chromium can starve the render pipeline for a moment after a programmatic
+ * scroll, and a scrub that is not being ticked does not move — so two readings
+ * across such a pause agree while the timeline is still on its way. On about
+ * one run in four that failed a fixture the build reproduces exactly: the gold
+ * rail reported a neighbouring sample's point count, on a frame whose
+ * luminance grid matched. The fixture was right; the reading was early.
+ *
+ * So the journey is asked instead of guessed at. `VaultHero` writes two
+ * numbers on the container every frame: `data-journey-to`, the position the
+ * scroll says to be at, straight from ScrollTrigger, and `data-journey-at`,
+ * the position the scrub has reached. They are equal exactly when the
+ * smoothing has caught up. That is a condition, not a heuristic: a stalled
+ * pipeline leaves them apart and the wait simply continues, where before it
+ * concluded.
+ *
+ * Both are written to six places, so equality is asserted to the same.
  */
-async function stableState(page, watched) {
-  let previous = await readState(page, watched);
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    await page.waitForTimeout(130);
+const ARRIVED = 2e-6;
+
+async function arrive(page) {
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    const where = await page.evaluate(() => {
+      const journey = document.querySelector('.journey');
+      return {
+        at: Number(journey?.dataset.journeyAt ?? NaN),
+        to: Number(journey?.dataset.journeyTo ?? NaN),
+      };
+    });
+    /* A build that does not publish its position — nothing does today, but a
+       fixture outlives the code that made it. Say so rather than spin. */
+    if (!Number.isFinite(where.at) || !Number.isFinite(where.to)) return { arrived: false, blind: true };
+    if (Math.abs(where.at - where.to) <= ARRIVED) return { arrived: true, ...where };
     await page.evaluate(
       () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
     );
+    await page.waitForTimeout(40);
+  }
+  return { arrived: false, blind: false };
+}
+
+/**
+ * One confirming re-read after arrival.
+ *
+ * The timeline having arrived is the hard part; this catches the cheaper case
+ * of something that follows it by a frame — a React commit, a class flip — and
+ * costs one frame when nothing is moving.
+ */
+async function stableState(page, watched) {
+  const landing = await arrive(page);
+
+  let previous = await readState(page, watched);
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
+    if (attempt > 0) await page.waitForTimeout(60);
     const current = await readState(page, watched);
-    if (JSON.stringify(current) === JSON.stringify(previous)) return current;
+    if (JSON.stringify(current) === JSON.stringify(previous)) {
+      return landing.arrived ? current : { ...current, unsettled: true };
+    }
     previous = current;
   }
   return { ...previous, unsettled: true };
@@ -538,7 +598,7 @@ function describeDiff(a, b) {
         });
         if (at >= 0) return `${key}[${at}] ${nx[at]} → ${ny[at]} (${worst.toFixed(3)})`;
       }
-      return `${key} shape changed`;
+      return `${key} shape changed (${nx.length} numbers → ${ny.length})`;
     }
 
     return `${key} ${JSON.stringify(x)} → ${JSON.stringify(y)}`;
@@ -610,6 +670,13 @@ async function verify() {
 
       if (a.lightWorld !== b.lightWorld) {
         fail(`${name} @${a.scrollY}px: the header chrome flips at a different place`);
+      }
+
+      /* A sample the journey never arrived at is not evidence either way, and
+         quietly comparing it is how a stalled reading gets recorded as a
+         regression — or, worse, as a pass. */
+      if (b.unsettled) {
+        fail(`${name} @${a.scrollY}px: the journey had not arrived when this was read`);
       }
 
       for (const selector of WATCHED) {

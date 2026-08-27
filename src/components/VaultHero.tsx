@@ -145,6 +145,21 @@ export function VaultHero() {
            tweens above it stay in step. */
         onUpdate: () => {
           const at = timeline?.progress() ?? 0;
+          /*
+           * Where the scrub has actually got to.
+           *
+           * Written beside `data-journey-to` below, which is where the scroll
+           * position says to be. The two are equal exactly when the smoothing
+           * has caught up, and that is the only honest definition of "the
+           * journey has arrived" — a harness that instead waits for two
+           * readings to agree will believe a stalled frame, and did: on about
+           * one run in four it recorded the gold rail a sample early, on a
+           * frame whose pixels were identical.
+           *
+           * One attribute write per frame, on the container, next to the three
+           * transforms this handler already writes.
+           */
+          root.dataset.journeyAt = at.toFixed(6);
           publishJourney(clamp01(at / share));
           /* A zero-length act two leaves nothing to publish, and dividing by
              the nothing it owns is how that would otherwise be discovered. */
@@ -158,6 +173,10 @@ export function VaultHero() {
           // short enough that the door still feels attached to the fingers.
           scrub: 0.4,
           onUpdate: ({ progress }) => {
+            /* Where the scroll position says the journey should be — see
+               `data-journey-at` above. Written before the scrub guard, because
+               it is true whether or not the vault is seekable. */
+            root.dataset.journeyTo = progress.toFixed(6);
             if (!scrubbableRef.current) return;
             const at = clamp01(progress / share);
             const door = (at - DOOR_FROM) / (DOOR_TO - DOOR_FROM);
@@ -167,6 +186,13 @@ export function VaultHero() {
       });
 
       timeline = tl;
+
+      /* The pair above is written on update, and at rest before the first
+         scroll there has been no update — so a reader arriving at the top
+         would find the journey saying nothing about where it is. State them
+         once from what is actually true now. */
+      root.dataset.journeyTo = (tl.scrollTrigger?.progress ?? 0).toFixed(6);
+      root.dataset.journeyAt = tl.progress().toFixed(6);
 
       tl
         // The scroll cue retires as soon as the journey begins.
