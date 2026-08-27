@@ -48,6 +48,10 @@
 <script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
 <script>
 gsap.registerPlugin(ScrollTrigger);
+// Belt and braces with the resize guard below: this stops ScrollTrigger itself
+// from treating a mobile toolbar sliding in and out as a layout change. Deliberately
+// no normalizeScroll() — it takes over scrolling and fights Lenis for it.
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 const LETTERBOX = '#0C1B33';
 const MAX_DPR = 2;
