@@ -54,6 +54,15 @@ gsap.registerPlugin(ScrollTrigger);
 ScrollTrigger.config({ ignoreMobileResize: true });
 
 const LETTERBOX = '#0C1B33';
+// Portrait sets a 16:9 plate on a 9:16 screen, so about two thirds of the height
+// is field whatever we do — the picture cannot grow without cropping the room
+// back out of shot. So the field is composed instead of left empty: navy that
+// deepens away from the plate, closed top and bottom by a gold hairline, and the
+// whole plate lifted a little off dead centre, which reads as centred and leaves
+// the lower field for the hero copy that lands here next.
+const FIELD_DEEP = '#06101E';
+const PLATE_RULE = 'rgba(201, 162, 75, 0.34)';
+const OPTICAL_RISE = 0.04;
 const MAX_DPR = 2;
 const CONCURRENCY = 6;
 
@@ -88,15 +97,44 @@ function paintBackdrop() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+// Navy at the plate's edge, deepening toward the screen edges, so the field reads
+// as darkness around a lit aperture rather than as space left over.
+function paintField(top, bottom) {
+  const ch = canvas.height;
+  const g = ctx.createLinearGradient(0, 0, 0, ch);
+  g.addColorStop(0, FIELD_DEEP);
+  g.addColorStop(Math.min(Math.max(top / ch, 0), 1), LETTERBOX);
+  g.addColorStop(Math.min(Math.max(bottom / ch, 0), 1), LETTERBOX);
+  g.addColorStop(1, FIELD_DEEP);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, ch);
+}
+
+// A hairline closing each long edge of the plate — one CSS pixel, so it stays a
+// line and not a band on a 3x screen.
+function paintRules(dx, dy, dw, dh) {
+  const lw = Math.max(1, Math.round(canvas.width / Math.max(innerWidth, 1)));
+  ctx.fillStyle = PLATE_RULE;
+  ctx.fillRect(dx, Math.round(dy) - lw, dw, lw);
+  ctx.fillRect(dx, Math.round(dy + dh), dw, lw);
+}
+
 function draw(img) {
-  paintBackdrop();
-  if (!img) return;
+  if (!img) { paintBackdrop(); return; }
   const cw = canvas.width, ch = canvas.height;
-  const fit = isPortrait()
+  const portrait = isPortrait();
+  const fit = portrait
     ? Math.min(cw / img.width, ch / img.height)
     : Math.max(cw / img.width, ch / img.height);
-  const dw = img.width * fit, dh = img.height * fit;
-  ctx.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+  // Rounded to whole device pixels: a plate on a fractional offset is resampled
+  // on every frame, which softens the image and costs work for nothing.
+  const dw = Math.round(img.width * fit), dh = Math.round(img.height * fit);
+  const dx = Math.round((cw - dw) / 2);
+  const dy = Math.round((ch - dh) / 2 - (portrait ? ch * OPTICAL_RISE : 0));
+
+  if (portrait) paintField(dy, dy + dh); else paintBackdrop();
+  ctx.drawImage(img, dx, dy, dw, dh);
+  if (portrait) paintRules(dx, dy, dw, dh);
 }
 
 // Device pixels the frame will actually occupy. Choosing the set from this is
