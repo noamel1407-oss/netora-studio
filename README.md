@@ -280,13 +280,34 @@ Under `prefers-reduced-motion` the pinned journey stands down completely: the sa
 renders as two calm full-height scenes (closed vault, then the world + statement), videos
 show native controls and never autoplay, and reveals/tilt/parallax are off.
 
-Two checks are wired up. Both need the production build running on port 4173
-(`npm run build && npm run preview`):
+Six checks are wired up. All but `assets:verify` need the production build running on
+port 4173 (`npm run build && npm run preview`):
 
 ```bash
 npm run audit:a11y       # axe-core, desktop + mobile + a legal page
 npm run audit:behaviour  # skip link, showcases/fallbacks, live links, form, header flip
+npm run audit:route      # act two: the greybox, the haze, and the camera's two rules
+npm run baseline:verify  # act one as it ships, against baselines/act-one/state-shipped-scrubbable.json
+npm run baseline:isolate # act one with act two collapsed, against the pre-act-two reference
+npm run assets:verify    # the five canonical anchors, re-hashed against their manifest
 ```
+
+`baseline:verify` wants a decodable copy of the vault render first — headless Chromium has
+no H.264 decoder, so without one the opening's scrubbable branch is not the branch being
+measured:
+
+```bash
+npm run vault:standin    # VP9 copy of the committed render into .netora-work/ (not shipped)
+```
+
+The two baselines answer different questions and neither replaces the other.
+`baseline:isolate` renders with `--act-two-h: 0` and checks the result against
+`baselines/act-one/state.json`, captured on the site before act two existed and never
+re-recorded from the code it checks — that is what proves appending the route changes
+nothing about act one. `baseline:verify` checks the site as it actually ships against its
+own fixture, which is what catches drift from here on. The two fixtures differ in the last
+few frames of act one, where the journey's ivory hand-off used to sit and no longer does;
+that is act one no longer being the end of the site, and it is intended.
 
 `audit:a11y` currently reports zero violations. Its "needs-review" list is the set of
 contrast checks axe cannot compute automatically (the gradient-filled wordmark); those were
