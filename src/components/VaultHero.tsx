@@ -81,11 +81,56 @@ export function VaultHero() {
      *
      * `actOne(0.24)` means "where act one is 24% through", wherever that now
      * falls on the longer container.
+     *
+     * ## Measured in pixels, not solved in `svh`
+     *
+     * The share is a ratio of two scroll distances, and the browser scrolls
+     * pixels. `(1080 - 100) / (1080 + 900 - 100)` is the same ratio only if
+     * the container's height is exactly `1080svh + 900svh` — and it is laid
+     * out as one `calc()` and rounded once, while act one's own length would
+     * be rounded separately. The two roundings disagree by a fraction of a
+     * pixel, act one's progress is this ratio's *divisor*, and the error comes
+     * straight back out magnified: the gold rail drew a pixel off its recorded
+     * path at the same physical scroll position, and the city's scrim flipped
+     * on the wrong side of the half-way beat.
+     *
+     * So act one's length is measured the same way the container's is, and the
+     * ratio is taken between two numbers that both came from layout. With act
+     * two collapsed the probe and the container measure the same box and the
+     * share is exactly 1, which is what act one was before any of this.
      */
-    const heights = getComputedStyle(root);
-    const one = parseFloat(heights.getPropertyValue('--act-one-h')) || 100;
-    const two = parseFloat(heights.getPropertyValue('--act-two-h')) || 0;
-    const share = shareOfScroll(one, two);
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:absolute;visibility:hidden;pointer-events:none;inline-size:0;block-size:var(--act-one-h)';
+    root.append(probe);
+    const actOnePx = probe.getBoundingClientRect().height;
+    probe.remove();
+
+    /*
+     * `top top` to `bottom bottom`, so both distances are their box less one
+     * window — the same window, so it cancels out of neither.
+     *
+     * Rounded before the division, because ScrollTrigger rounds its own start
+     * and end to whole pixels and then reports progress against *those*. Take
+     * the ratio of the unrounded heights and the divisor no longer matches the
+     * dividend: at 860svh + 900svh on a 844px window the trigger scrubs over
+     * 14010 while the share says 14010.39, and act one's progress comes out
+     * 1.8e-5 low. That is enough to draw the gold rail a pixel off its
+     * recorded path and to put the city's scrim on the wrong side of the
+     * half-way beat — a difference that survives any amount of waiting,
+     * because it is not the scrub still settling. It is the wrong number.
+     */
+    const window_ = window.innerHeight;
+    const containerPx = root.getBoundingClientRect().height;
+    const measured = Math.round(actOnePx - window_) / Math.round(containerPx - window_);
+    const share =
+      Number.isFinite(measured) && measured > 0 && measured <= 1
+        ? measured
+        : /* Layout gave nothing usable — fall back to the stated lengths. */
+          shareOfScroll(
+            parseFloat(getComputedStyle(root).getPropertyValue('--act-one-h')) || 100,
+            parseFloat(getComputedStyle(root).getPropertyValue('--act-two-h')) || 0,
+          );
     const actOne = (at: number) => at * share;
     const clamp01 = (value: number) => (value < 0 ? 0 : value > 1 ? 1 : value);
 

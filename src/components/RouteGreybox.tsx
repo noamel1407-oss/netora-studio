@@ -12,10 +12,15 @@ type Props = { scene: Scene };
  * GREYBOX. Masses and openings, no architecture.
  *
  * This exists to prove one thing and nothing else: that SHAY → approach
- * TIMEMATIC → stop at its display → move *around* the display → into the
- * corridor → through it → out toward contact is one continuous physical camera
- * journey through one world. No materials, no lighting, no plaques, no
- * facade — those are the pass after this one, and only if the route reads.
+ * TIMEMATIC → stop at its display is one continuous physical camera journey
+ * through one world. No materials, no lighting, no plaques, no facade — those
+ * are the pass after this one, and only if the route reads.
+ *
+ * **Anchors 01 and 02 only.** Moving around the display, the corridor, and the
+ * way out to contact are anchors 03–05 and are a later act; there is no
+ * geometry for any of them here. The first greybox did build them, and taking
+ * them out again is what `7a8e595` was: this stretch has to be right before
+ * anything stands past it.
  *
  * Every face here is real geometry standing in act one's own coordinate space,
  * placed by the same projection the floating platform is placed by, inside the
@@ -24,11 +29,16 @@ type Props = { scene: Scene };
  *
  * ## The display
  *
- * `ACT2.wall` is one plane with exactly one hole in it, at `ACT2.opening`. The
- * display hangs on the solid part. The route crosses that plane once, through
- * the hole, 806–1795 units to the right of centre — so "the camera never
- * travels through the website" is not a rule anyone has to remember here. It
- * is a wall.
+ * `ROUTE.wall` is one plane, solid all the way across, and the display hangs
+ * on it. The camera halts 1681 units in front of it and nothing on the route
+ * goes further, so "the camera never travels through the website" is not a
+ * rule anyone has to remember here — there is a wall in the way.
+ *
+ * When anchor 03's corridor is built, the way past this wall is an opening cut
+ * in it well to the right of the display, and the route leaves through that.
+ * Until that opening exists there is nothing through this wall at all, which
+ * is why it is drawn as one unbroken plane rather than as a plane with a hole
+ * nothing uses.
  *
  * The site itself is mapped onto that surface with the same `ProjectScreen`
  * the platform's monitor uses, so a real capture of TIMEMATIC dropped into

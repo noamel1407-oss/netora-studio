@@ -28,17 +28,37 @@ it because it has halted in front of it.
 
 ## Where they are used
 
-- `src/journey/route.ts` is the only description of the camera that walks
-  these five. Every number in it is measured off these frames.
-- `npm run assets:anchors` measures them and prints what it finds: the
+They are never shown. Nothing in `src/` loads them, they sit outside `public/`,
+and the build does not emit them. They are measurement input and art direction,
+and that is the whole of it.
+
+- **`src/journey/scene.ts`, the `ROUTE` block** is the only description of the
+  camera that walks this stretch. Every number in it is measured off anchors 01
+  and 02 — the hall, the display, where TIMEMATIC stands and how long the plaza
+  in front of it is. Anchors 03–05 have not been solved into geometry yet: that
+  is a later act.
+- **`npm run assets:anchors`** measures them and prints what it finds: the
   openings each leg leaves through, the screen rectangles the camera must stay
-  out of, and the gold rails traced row by row. It only prints — the anchors
-  are canonical, and a tool that rewrote the route from them would be a way to
+  out of, and the gold rails traced row by row. It only prints — the anchors are
+  canonical, and a tool that rewrote the route from them would be a way to
   change the journey by re-running a script.
-- `npm run assets:plates` writes the web copies into `public/media/`. Same
-  pixels, same framing, WebP, no resizing.
-- `npm run audit:route` walks the finished camera and asserts what it must not
-  stop being — the order, the stop, and the rule above.
+- **`npm run compare:anchors`** stands the built camera at anchor 01 and anchor
+  02 and puts the render beside the reference, so the geometry can be checked
+  against the frame it came from.
+- **`npm run measure:yaw`** asks anchors 02 and 03 whether the route's camera
+  turns, and reports the interval the data constrain rather than a point
+  estimate.
+- **`npm run assets:verify`** re-hashes all five against `manifest.json` and
+  fails on a mismatch, a missing file, or a file here that the manifest does
+  not list.
+
+An earlier pass built a 2D implementation on these frames — `src/journey/route.ts`,
+`npm run assets:plates`, `npm run audit:route`, and five `route-*.webp` backdrop
+plates in `public/media/`. All of it was removed in `5d1780d`: treating the
+anchors as full-screen backdrops that scale and swap is a slideshow beside the
+world rather than a camera moving through it. The frames survived that revert
+because they are measurement; the tooling did not. If you find a reference to
+any of those four names, it is stale.
 
 ## Two things the measurements settled
 
@@ -60,7 +80,8 @@ tilts.
 
 Don't, casually. A canonical replacement is a decision about the journey, not
 an asset swap: the aim, the opening it hands over through, the screen
-rectangles and the scroll window all come off the frame, and all of them are
-in `src/journey/route.ts`. Re-run `npm run assets:anchors`, move the numbers
-across, re-run `npm run assets:plates`, and then `npm run audit:route` before
-anything else.
+rectangles and the scroll window all come off the frame, and all of them are in
+`src/journey/scene.ts`'s `ROUTE` block. Re-run `npm run assets:anchors`, move
+the numbers across, update this frame's `sha256`, `bytes` and dimensions in
+`manifest.json` by hand, and then `npm run assets:verify` and
+`npm run compare:anchors` before anything else.

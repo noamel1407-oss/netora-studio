@@ -8,3 +8,6 @@ tmp/
 
 # Ad-hoc verification scripts (prefixed _) stay local.
 scripts/_*.mjs
+
+# Measurement stand-ins and other non-canonical working files.
+.netora-work/

@@ -31,13 +31,40 @@
  * Full screenshots are kept at a few checkpoints as well, for the case where
  * a number has moved and a person needs to see what it did.
  *
- * ## What this cannot cover
+ * ## Two axes, both stated rather than assumed
  *
- * Headless Chromium has no H.264 decoder, so the vault video never becomes
- * seekable and `VaultHero` takes its non-scrubbable branch. The scrubbable
- * branch has its own tween positions and they are not exercised here. Their
- * arithmetic is checked separately and without a browser — see
- * `scripts/audit-act-one-timing.mjs`.
+ * **Mode.** Headless Chromium has no H.264 decoder, so left alone the vault
+ * video never becomes seekable and `VaultHero` takes its non-scrubbable
+ * branch — which means the door on the scroll wheel, the thing the opening is
+ * built around, is not being measured at all. So a VP9 copy of the same render
+ * is served in its place when one is available: `npm run vault:standin` writes
+ * it, `VAULT_WEBM` overrides where it is read from, and the run reports
+ * `scrubbable` or `poster` accordingly. The two modes have different tween
+ * positions, so they have different fixtures and are never compared with each
+ * other.
+ *
+ * `--poster` ignores the stand-in, for checking the fallback path deliberately
+ * rather than by not having the file.
+ *
+ * **Configuration.** `--isolate` renders the site with `--act-two-h: 0`. That
+ * is act one as it was before act two existed, and it is the run that proves
+ * the share mapping, the route bus, `cameraAt`'s branch, the lens shift and
+ * the greybox change nothing about act one. Without the flag the site is
+ * rendered exactly as it ships.
+ *
+ * Both are recorded in the fixture and checked on the way in. A run cannot be
+ * verified against a fixture taken under a different mode or a different
+ * configuration, because the two would disagree for reasons that have nothing
+ * to do with a regression.
+ *
+ * ## The fixtures
+ *
+ * - `state.json` — the isolation reference. Captured at `f2dd268` against the
+ *   unmodified site, before the greybox existed, and **not re-recorded from
+ *   this branch**: a reference regenerated from the code it is meant to check
+ *   is not a reference. Verified with `--isolate`.
+ * - `state-shipped-<mode>.json` — the site as it ships, one per mode. This is
+ *   what catches drift from here on.
  */
 
 import { mkdir, readFile, writeFile, readdir, rm } from 'node:fs/promises';
@@ -48,6 +75,27 @@ import sharp from 'sharp';
 
 const BASE = 'http://localhost:4173';
 const OUT = path.join(process.cwd(), 'baselines', 'act-one');
+
+/** `--isolate` collapses act two, so what is walked is act one on its own. */
+const ISOLATE = process.argv.includes('--isolate');
+
+/**
+ * The decodable stand-in for the vault render.
+ *
+ * `VAULT_WEBM` points at one explicitly; otherwise the file
+ * `npm run vault:standin` writes is used if it is there. Absent, the run is a
+ * `poster` one and says so — it is still a real check of everything that is
+ * not the vault's own scrub.
+ */
+const STAND_IN = process.argv.includes('--poster')
+  ? null
+  : process.env.VAULT_WEBM || path.join(process.cwd(), '.netora-work', 'vault-video.webm');
+
+/** Which fixture a run of this shape belongs to. */
+const fixtureFor = (config, mode) =>
+  config === 'isolated' && mode === 'poster'
+    ? path.join(OUT, 'state.json')
+    : path.join(OUT, `state-${config}-${mode}.json`);
 
 /** Both matter: act one's container is a different height on each. */
 const VIEWPORTS = [
@@ -202,24 +250,30 @@ async function walk(page, viewport, wantShots) {
   const measured = await page.evaluate(() => {
     const journey = document.querySelector('.journey');
     if (!journey) return null;
-    const styles = getComputedStyle(journey);
-    /* Before act two existed there was no `--act-one-h` and the container was
-       act one — so fall back to its own length rather than to a number that
-       makes the share 0/0. This has to keep working against the unchanged
-       site: a harness that cannot measure the thing it is protecting is not
-       protecting anything. */
-    const one =
-      parseFloat(styles.getPropertyValue('--act-one-h')) ||
-      parseFloat(styles.getPropertyValue('--journey-h')) ||
-      100;
-    const two = parseFloat(styles.getPropertyValue('--act-two-h')) || 0;
+    /* Measured, not solved from the `svh` numbers — the same way `VaultHero`
+       takes it, and for the same reason: the container's height and act one's
+       are rounded to pixels separately, and act one's progress is this ratio's
+       divisor. Before act two existed there was no `--act-one-h` and the
+       container was act one, so the probe falls back to the container's own
+       height rather than to a number that makes the share 0/0. This has to
+       keep working against the unchanged site: a harness that cannot measure
+       the thing it is protecting is not protecting anything. */
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:absolute;visibility:hidden;pointer-events:none;inline-size:0;' +
+      'block-size:var(--act-one-h, var(--journey-h, 100%))';
+    journey.append(probe);
+    const actOne = probe.getBoundingClientRect().height;
+    probe.remove();
+
+    const height = journey.getBoundingClientRect().height;
     return {
-      height: Math.round(journey.getBoundingClientRect().height),
-      /* Act one's share of the scrolled length — see `shareOfScroll` in
-         VaultHero. Sampling the container instead would compare act one before
-         against act two after, which is how the first run of this reported
-         "identical" while silently checking nothing. */
-      share: (one - 100) / (one + two - 100),
+      height: Math.round(height),
+      /* Act one's share of the scrolled length. Sampling the container instead
+         would compare act one before against act two after, which is how the
+         first run of this reported "identical" while silently checking
+         nothing. */
+      share: Math.round(actOne - window.innerHeight) / Math.round(height - window.innerHeight),
     };
   });
   if (!measured) throw new Error('no .journey on the page');
@@ -252,14 +306,18 @@ async function walk(page, viewport, wantShots) {
   return { height, range, share, samples, shots };
 }
 
-async function run(mode) {
+async function run() {
   const browser = await chromium.launch({
     executablePath: process.env.PW_CHROMIUM || undefined,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   });
 
+  const standIn = STAND_IN ? await readFile(STAND_IN).catch(() => null) : null;
   const captured = {};
   const shotsByViewport = {};
+  /* Assumed until a viewport proves otherwise: a stand-in that is present but
+     undecodable must not be reported as though it had been scrubbed. */
+  let mode = 'poster';
 
   for (const viewport of VIEWPORTS) {
     const context = await browser.newContext({
@@ -271,8 +329,61 @@ async function run(mode) {
     const problems = [];
     page.on('pageerror', (error) => problems.push(String(error.message)));
 
+    /*
+     * Act two, collapsed to nothing.
+     *
+     * At document start rather than after load: act one's share is read off
+     * these two custom properties once, while the timeline is being built, so
+     * a stylesheet added afterwards would change what the container measures
+     * without changing what the journey was laid out against.
+     */
+    if (ISOLATE) {
+      await page.addInitScript(() => {
+        const collapse = () => {
+          const style = document.createElement('style');
+          style.textContent = '.journey{--act-two-h:0svh !important}';
+          document.documentElement.append(style);
+        };
+        if (document.documentElement) collapse();
+        else document.addEventListener('readystatechange', collapse, { once: true });
+      });
+    }
+
+    /* The same render, in a container this browser can decode. The response's
+       own content type is what decides playability, so the page's `type` hint
+       on the mp4 source does not have to agree with it. */
+    if (standIn) {
+      await page.route('**/vault-video.mp4', (route) =>
+        route.fulfill({ status: 200, contentType: 'video/webm', body: standIn }),
+      );
+    }
+
     await page.goto(BASE, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1800);
+
+    /* Scrubbable is a fact about this run, not about the file being present:
+       it is true only where the element actually reports a duration to seek
+       within.
+
+       Waited for either way, because the branch the vault takes is a repaint:
+       without a decodable source the element is eventually pulled and the
+       poster takes its place, and walking before that lands captures whichever
+       of the two the run happened to be showing. */
+    await page
+      .waitForFunction(
+        () => {
+          const video = document.querySelector('.vault-video__media');
+          const images = [...document.images].every((image) => image.complete);
+          return images && (!video || video.readyState >= 2);
+        },
+        { timeout: 20000 },
+      )
+      .catch(() => {});
+    const scrubbable = await page.evaluate(() => {
+      const video = document.querySelector('.vault-video__media');
+      return Boolean(video && video.readyState >= 2 && video.duration > 0);
+    });
+    if (scrubbable) mode = 'scrubbable';
 
     const result = await walk(page, viewport, viewport.name === 'desktop');
     captured[viewport.name] = {
@@ -289,35 +400,41 @@ async function run(mode) {
   }
 
   await browser.close();
-  return { captured, shotsByViewport };
+  return { captured, shotsByViewport, mode, config: ISOLATE ? 'isolated' : 'shipped' };
 }
 
 /* --------------------------------------------------------------------------
    Capture and verify
    -------------------------------------------------------------------------- */
 
-const jsonPath = path.join(OUT, 'state.json');
-
 async function capture() {
-  const { captured, shotsByViewport } = await run();
+  const { captured, shotsByViewport, mode, config } = await run();
+  const jsonPath = fixtureFor(config, mode);
+  /* One fixture per shape, so capturing a shipped run cannot quietly replace
+     the isolation reference — which is the one artifact here that must not be
+     regenerated from the code it checks. */
+  const frames =
+    config === 'isolated' && mode === 'poster'
+      ? path.join(OUT, 'frames')
+      : path.join(OUT, `frames-${config}-${mode}`);
 
-  await rm(OUT, { recursive: true, force: true });
-  await mkdir(path.join(OUT, 'frames'), { recursive: true });
+  await rm(frames, { recursive: true, force: true });
+  await mkdir(frames, { recursive: true });
 
   await writeFile(
     jsonPath,
-    `${JSON.stringify({ grid: GRID, samples: SAMPLES, act: captured }, null, 1)}\n`,
+    `${JSON.stringify({ grid: GRID, samples: SAMPLES, config, mode, act: captured }, null, 1)}\n`,
   );
 
   for (const shot of shotsByViewport.desktop ?? []) {
     await sharp(shot.buffer)
       .resize({ width: 720 })
       .png({ compressionLevel: 9 })
-      .toFile(path.join(OUT, 'frames', `${shot.name}.png`));
+      .toFile(path.join(frames, `${shot.name}.png`));
   }
 
   const total = Object.values(captured).reduce((n, act) => n + act.samples.length, 0);
-  console.log(`Captured ${total} samples across ${VIEWPORTS.length} viewports.`);
+  console.log(`Captured ${total} samples across ${VIEWPORTS.length} viewports — ${config}, ${mode}.`);
   for (const [name, act] of Object.entries(captured)) {
     console.log(
       `  ${name.padEnd(8)} container ${act.height}px, act one scrubbed over ${act.range}px ` +
@@ -325,8 +442,8 @@ async function capture() {
     );
     if (act.pageErrors.length) console.log(`    page errors: ${act.pageErrors.join(' | ')}`);
   }
-  console.log(`  frames: ${(await readdir(path.join(OUT, 'frames'))).length}`);
-  console.log(`\nWritten to ${path.relative(process.cwd(), OUT)}/`);
+  console.log(`  frames: ${(await readdir(frames)).length}`);
+  console.log(`\nWritten to ${path.relative(process.cwd(), jsonPath)}`);
 }
 
 /**
@@ -428,14 +545,39 @@ function describeDiff(a, b) {
 }
 
 async function verify() {
-  const before = JSON.parse(await readFile(jsonPath, 'utf8'));
-  const { captured } = await run();
+  const { captured, mode, config } = await run();
+  const jsonPath = fixtureFor(config, mode);
 
   let failures = 0;
   const fail = (message) => {
     failures += 1;
     console.log(`FAIL  ${message}`);
   };
+
+  const before = await readFile(jsonPath, 'utf8')
+    .then(JSON.parse)
+    .catch(() => null);
+  if (!before) {
+    console.log(
+      `No fixture for a ${config}, ${mode} run.\n` +
+        `  expected ${path.relative(process.cwd(), jsonPath)}\n` +
+        `  capture one with: node scripts/baseline-act-one.mjs --capture${ISOLATE ? ' --isolate' : ''}\n` +
+        (mode === 'poster'
+          ? '  (or `npm run vault:standin` first, to measure the scrubbable branch instead)\n'
+          : ''),
+    );
+    process.exit(1);
+  }
+
+  /* A fixture from before these fields existed is the isolation reference, and
+     nothing else was ever written to that path. */
+  const taken = { config: before.config ?? 'isolated', mode: before.mode ?? 'poster' };
+  if (taken.config !== config || taken.mode !== mode) {
+    console.log(`FAIL  fixture is ${taken.config}/${taken.mode}, this run is ${config}/${mode}\n`);
+    process.exit(1);
+  }
+
+  console.log(`Verifying ${path.relative(process.cwd(), jsonPath)} — ${config}, ${mode}.`);
 
   for (const [name, was] of Object.entries(before.act)) {
     const now = captured[name];

@@ -295,7 +295,12 @@ function railXAt(z: number): number {
 }
 
 export type Camera = {
-  /** Travel progress, 0 at the statement's departure, 1 at the arrival. */
+  /**
+   * Travel progress: 0 at the statement's departure, 1 at the arrival, and on
+   * past it — the route runs 1 → 2. It is the camera's own position in the
+   * journey, so anything that reads it to decide how far along the world it is
+   * gets an answer that keeps being true after act one ends.
+   */
   t: number;
   /** Dolly, in world px, positive = forward. */
   z: number;
@@ -607,6 +612,31 @@ function keysFor(scene: Scene) {
 const VP_SETTLES: [number, number] = [1.075, 1.15];
 const ROUTE_VP = { x: 0.5, y: 0.52 };
 
+/**
+ * Where the plaza's air runs out.
+ *
+ * Between `ROUTE_KEYS` 1.6 (z -18000) and 1.72 (z -20600) the camera reaches
+ * TIMEMATIC's front at `ROUTE.facade.z` — around 1.7. That is the moment the
+ * open city stops being what the lens is looking through.
+ */
+const AIR_CLEARS = 1.7;
+
+/**
+ * The warm air the camera is moving through, as the layer's opacity.
+ *
+ * Act one gathers it: the haze thickens with the distance covered, and at the
+ * arrival it stands at half. Act two spends it, because the route crosses the
+ * plaza and goes inside, and air that belongs to the open city cannot still be
+ * in front of the lens once a building's interior is.
+ *
+ * Act one's half of this is `travel * 0.5` exactly as it has always been —
+ * this function only gives the other half somewhere to live.
+ */
+export function airAt(travel: number): number {
+  if (travel <= 1) return clamp01(travel) * 0.5;
+  return 0.5 * (1 - clamp01((travel - 1) / (AIR_CLEARS - 1)));
+}
+
 function keyframeAt(t: number, scene: Scene): { x: number; z: number } {
   const keys = keysFor(scene);
   const at = clamp(t, keys[0].t, keys[keys.length - 1].t);
@@ -653,7 +683,11 @@ function routeCameraAt(travel: number, scene: Scene): Camera {
   const held = cameraAt(1, scene);
 
   return {
-    t: 1,
+    /* The camera's real position in the journey. Returning act one's arrival
+       here instead left everything reading `t` frozen at the platform for the
+       whole route — which is how `--air` came to sit at 0.500 from SHAY to the
+       TIMEMATIC stop. */
+    t: travel,
     z,
     x,
     tiltY,

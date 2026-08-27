@@ -63,14 +63,22 @@ for (const id of ['work', 'about', 'contact']) {
 // baked-in picture. Under reduced motion that arrival is a static scene.
 check('the floating platform renders', (await page.locator('.platform').count()) === 1);
 check('the platform carries a computer', (await page.locator('.platform__monitor').count()) === 1);
-const screen = page.locator('.pscreen');
+/* Scoped to the platform's own monitor. A second `ProjectScreen` stands on
+   TIMEMATIC's wall in act two's greybox, so a bare `.pscreen` is no longer one
+   element — and counting all of them turned this into a failure about act two
+   dressed up as a failure about SHAY. */
+const screen = page.locator('.platform .pscreen');
 check('the computer has a screen surface', (await screen.count()) === 1);
+check(
+  'the greybox has not put a second screen on the platform',
+  (await page.locator('.pscreen').count()) === (await page.locator('.grey .pscreen').count()) + 1,
+);
 check('the screen shows the project\'s own opening frame', await screen.locator('.pscreen__shot').isVisible());
-check('nothing plays inside the screen', (await page.locator('.pscreen video, .pscreen__toggle').count()) === 0);
+check('nothing plays inside the screen', (await page.locator('.platform .pscreen video, .platform .pscreen__toggle').count()) === 0);
 check(
   'the screen clips its media to the monitor',
   await page.evaluate(() => {
-    const el = document.querySelector('.pscreen');
+    const el = document.querySelector('.platform .pscreen');
     const well = el?.closest('.monitor__well');
     if (!el || !well) return false;
     const a = el.getBoundingClientRect();

@@ -346,3 +346,50 @@ valid", which cannot speak to B2. Instead:
 > be regenerated.
 
 **Nothing here justifies touching `main`.**
+
+---
+
+## 5. What has since changed on this branch
+
+Everything above describes B2 at `42dcb3a`, and that is what it should keep
+describing — it is the record of what was found. Four of its findings have been
+acted on since, on this branch, and the numbers here are what the runs
+actually printed:
+
+- **The baseline is green on the shipped configuration.**
+  `baselines/act-one/state-shipped-scrubbable.json` is the site as it ships,
+  and `npm run baseline:verify` reproduces it: 167 samples identical on each of
+  two viewports, worst pixel drift 1/255 desktop and 2/255 mobile.
+- **The isolation run is committed rather than improvised.**
+  `npm run baseline:isolate` renders with `--act-two-h: 0` from the harness and
+  checks it against `state.json` — the reference captured at `f2dd268` on the
+  unmodified site. 167/167 on both viewports. The guarantee no longer depends
+  on a build nobody else has.
+- **Two real differences were behind the "remaining baseline diffs".** They
+  were not the scrub's easing. Act one's share was solved from the `svh`
+  numbers while ScrollTrigger scrubs a whole number of pixels, so act one's
+  progress ran 1.8e-5 low for the same physical scroll — a gold rail a pixel
+  off its recorded path, and the city's scrim on the wrong side of the half-way
+  beat. Both survived four seconds of waiting, which is what ruled easing out.
+  Fixed in `VaultHero` by measuring both distances and rounding them the way
+  ScrollTrigger does.
+- **The vault's own scrub is measured now.** `npm run vault:standin` writes a
+  VP9 copy of the committed render into `.netora-work/`, and the harness serves
+  it in place of the mp4, so `VaultHero` takes its scrubbable branch under a
+  Chromium with no H.264 decoder. `state-shipped-scrubbable.json` is a walk of
+  that branch. `scripts/audit-act-one-timing.mjs`, the compensating control the
+  old header pointed at, is still not written and is no longer referenced.
+- **`--air` varies through act two.** `npm run audit:route` walks the route and
+  asserts it, along with the rules the route exists to keep: 0.500 → 0.000
+  across 29 distinct values, spent by world z −20407 (the facade stands at
+  −19900), the camera never reversing and never reaching the work.
+- **The anchors have provenance.** `reference/transitions/manifest.json` records
+  each frame's sha256, size, role, what it was measured into, and the fact that
+  its generator is unrecorded. `npm run assets:verify` re-hashes them and fails
+  on a mismatch or on a frame the manifest does not list.
+
+One finding from the audit sweep that is not in the list above:
+`npm run audit:behaviour` was counting every `.pscreen` on the page, and the
+greybox puts a second one on TIMEMATIC's wall — so a check about SHAY's monitor
+had been failing since `7a8e595` for a reason that had nothing to do with SHAY.
+Scoped to `.platform .pscreen`; 31/31 pass.

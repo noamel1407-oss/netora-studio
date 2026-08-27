@@ -16,7 +16,11 @@
     "audit:behaviour": "node scripts/audit-behaviour.mjs",
     "baseline:capture": "node scripts/baseline-act-one.mjs --capture",
     "baseline:verify": "node scripts/baseline-act-one.mjs",
-    "compare:anchors": "node scripts/compare-anchors.mjs"
+    "compare:anchors": "node scripts/compare-anchors.mjs",
+    "assets:verify": "node scripts/verify-anchors.mjs",
+    "vault:standin": "node scripts/vault-standin.mjs",
+    "baseline:isolate": "node scripts/baseline-act-one.mjs --isolate --poster",
+    "audit:route": "node scripts/audit-act-two.mjs"
   },
   "dependencies": {
     "gsap": "^3.15.0",

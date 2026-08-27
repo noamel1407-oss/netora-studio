@@ -4,7 +4,7 @@ import { GoldPath } from './GoldPath';
 import { ProjectPlatform } from './ProjectPlatform';
 import { RouteGreybox } from './RouteGreybox';
 import { ProjectStation } from './ProjectStation';
-import { ARRIVAL_PROGRESS, cameraAt } from '../journey/scene';
+import { ARRIVAL_PROGRESS, airAt, cameraAt } from '../journey/scene';
 import { publishJourney, useJourneyTravel } from '../journey/progress';
 import { useScene } from '../journey/useScene';
 import './CityTravel.css';
@@ -84,7 +84,7 @@ export function CityTravel({ still }: Props) {
       const shiftY = camera.vp.y - scene.vp.y;
       stage.style.transform = `translate3d(${shiftX.toFixed(2)}px, ${(camera.tiltY + shiftY).toFixed(2)}px, 0)`;
       world.style.transform = `translate3d(${camera.x.toFixed(2)}px, 0, ${camera.z.toFixed(2)}px)`;
-      root.style.setProperty('--air', (camera.t * 0.5).toFixed(3));
+      root.style.setProperty('--air', airAt(camera.t).toFixed(3));
     },
     [scene],
   );
