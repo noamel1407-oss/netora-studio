@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NETORA</title>
+<link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
+<style>
+  :root {
+    --navy: #0C1B33;
+    --gold: #C9A24B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  html, body { background: var(--navy); overscroll-behavior-y: none; }
+  html.loading { overflow: hidden; }
+  #stage { position: fixed; inset: 0; z-index: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; }
+  #scroll { height: 500vh; position: relative; z-index: 1; pointer-events: none; }
+  #loader {
+    position: fixed; inset: 0; z-index: 10; background: var(--navy);
+    display: grid; place-items: center;
+  }
+  #bar { width: min(48vw, 240px); height: 2px; background: rgba(201, 162, 75, 0.25); }
+  #bar > i { display: block; height: 100%; width: 0; background: var(--gold); }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="scroll"></div>
+<div id="loader"><div id="bar"><i></i></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger);
+document.documentElement.classList.add('loading');
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const bar = document.querySelector('#bar > i');
+const loader = document.getElementById('loader');
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr);
+  canvas.height = Math.round(innerHeight * dpr);
+}
+
+function coverDraw(img) {
+  if (!img) return;
+  const cw = canvas.width, ch = canvas.height;
+  const ir = img.width / img.height;
+  let dw, dh, dx, dy;
+  if (cw / ch > ir) {
+    dw = cw; dh = cw / ir; dx = 0; dy = (ch - dh) / 2;
+  } else {
+    dh = ch; dw = ch * ir; dx = (cw - dw) / 2; dy = 0;
+  }
+  ctx.fillStyle = '#0C1B33';
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+function srcFromTemplate(tpl, i) {
+  return tpl.replace('%04d', String(i).padStart(4, '0'));
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(src));
+    img.src = src;
+  });
+}
+
+(async function () {
+  const manifest = await fetch('public/frames/manifest.json').then((r) => r.json());
+  const clip = manifest.clips.find((c) => c.id === 'clip-01');
+  const set = innerWidth <= clip.mobile.width ? clip.mobile : clip.desktop;
+  const frames = new Array(clip.count);
+  let loaded = 0;
+
+  await Promise.all(Array.from({ length: clip.count }, (_, i) => {
+    const n = i + 1;
+    return loadImage(srcFromTemplate(set.src, n)).then((img) => {
+      frames[i] = img;
+      loaded += 1;
+      bar.style.width = ((loaded / clip.count) * 100) + '%';
+    });
+  }));
+
+  resize();
+  coverDraw(frames[0]);
+  loader.remove();
+  document.documentElement.classList.remove('loading');
+
+  const lenis = new Lenis();
+  lenis.on('scroll', ScrollTrigger.update);
+  gsap.ticker.add((time) => { lenis.raf(time * 1000); });
+  gsap.ticker.lagSmoothing(0);
+
+  const state = { frame: 0 };
+  gsap.to(state, {
+    frame: clip.count - 1,
+    ease: 'none',
+    snap: 'frame',
+    scrollTrigger: {
+      trigger: '#scroll',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: true,
+    },
+    onUpdate() {
+      coverDraw(frames[state.frame]);
+    },
+  });
+
+  addEventListener('resize', () => {
+    resize();
+    coverDraw(frames[state.frame]);
+    ScrollTrigger.refresh();
+  });
+})();
+</script>
+</body>
+</html>
