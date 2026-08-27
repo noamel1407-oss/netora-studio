@@ -1,0 +1,12 @@
+# Approved source clips. Fetched by scripts/build-frames.sh from the URLs in
+# _handoff/HANDOFF-CLAUDE-CODE.md — they are inputs to the build, not source.
+/public/clips/
+
+# Frame sequences and the manifest describing them are build output. Regenerate
+# with scripts/build-frames.sh.
+/public/frames/
+
+# Depth maps are generated from the scene stills by _handoff/make_depth.py.
+/public/scenes/*-depth.png
+
+.DS_Store
