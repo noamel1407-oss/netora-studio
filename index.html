@@ -13,9 +13,21 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: auto; }
   html, body { background: var(--navy); overscroll-behavior-y: none; }
-  #stage { position: fixed; inset: 0; z-index: 0; }
-  #stage canvas { display: block; width: 100%; height: 100%; }
-  #scroll { height: 500vh; position: relative; z-index: 1; pointer-events: none; }
+  /* The stage spans whatever is visible; the canvas inside it is a fixed box
+     sized in svh, so the address bar sliding in and out never resizes it. It is
+     centred, so when the bar hides, the extra room becomes navy on both sides
+     rather than shunting the picture upward. */
+  #stage { position: fixed; inset: 0; z-index: 0; display: grid; place-items: center; }
+  #stage canvas {
+    display: block; width: 100%;
+    height: 100vh;   /* fallback where svh is unsupported */
+    height: 100svh;  /* small viewport: measured with the chrome shown, so stable */
+  }
+  #scroll {
+    position: relative; z-index: 1; pointer-events: none;
+    height: 500vh;
+    height: 500svh;  /* a scroll length the chrome cannot change mid-gesture */
+  }
   /* Dev-only build marker — hidden unless served from a local network. */
   #build {
     position: fixed; left: 8px; bottom: 8px; z-index: 2; pointer-events: none;
@@ -49,10 +61,22 @@ const ctx = canvas.getContext('2d', { alpha: false });
 // own width instead and letterboxes above and below. Landscape and desktop cover.
 const isPortrait = () => innerHeight > innerWidth;
 
+// iOS fires resize continuously while the address bar slides. Reallocating the
+// backing store there clears the canvas, and refreshing ScrollTrigger recomputes
+// start/end and snaps the scroll under the reader's finger — which is what made
+// the page feel unstable. The canvas box is measured from CSS (svh), so chrome
+// moving leaves it identical and this reports no change.
+let boxW = 0, boxH = 0, realResizes = 0;
+
 function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (w === boxW && h === boxH) return false;
+  boxW = w; boxH = h;
+  realResizes++;
   const dpr = Math.min(devicePixelRatio || 1, MAX_DPR);
-  canvas.width = Math.round(innerWidth * dpr);
-  canvas.height = Math.round(innerHeight * dpr);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  return true;
 }
 
 function paintBackdrop() {
@@ -99,7 +123,8 @@ function showBuild(note) {
   if (!IS_LOCAL) return;
   const el = document.getElementById('build');
   el.hidden = false;
-  el.textContent = `${isPortrait() ? 'contain' : 'cover'} · ${buildNote}`;
+  el.textContent = `${isPortrait() ? 'contain' : 'cover'} ${boxW}x${boxH}`
+    + ` · ${realResizes} resize${realResizes === 1 ? '' : 's'} · ${buildNote}`;
 }
 
 function frameSrc(set, n) {
@@ -174,7 +199,9 @@ function loadImage(src) {
   });
 
   addEventListener('resize', () => {
-    resize();
+    // A rotation changes the box and must be honoured; the address bar does not
+    // and must be ignored, or the scrub jumps every time the chrome moves.
+    if (!resize()) return;
     render();
     showBuild();
     ScrollTrigger.refresh();
