@@ -16,11 +16,20 @@
   #stage { position: fixed; inset: 0; z-index: 0; }
   #stage canvas { display: block; width: 100%; height: 100%; }
   #scroll { height: 500vh; position: relative; z-index: 1; pointer-events: none; }
+  /* Dev-only build marker — hidden unless served from a local network. */
+  #build {
+    position: fixed; left: 8px; bottom: 8px; z-index: 2; pointer-events: none;
+    font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .06em; color: var(--gold);
+    background: rgba(12, 27, 51, .72); padding: 5px 7px; border-radius: 3px;
+  }
+  #build[hidden] { display: none; }
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="c"></canvas></div>
 <div id="scroll"></div>
+<div id="build" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
@@ -78,6 +87,21 @@ function pickSet(sets) {
   return sets.find((s) => s.width >= need) || sets[sets.length - 1];
 }
 
+// Which index.html and which frame build is actually on screen, and which fit
+// branch it took. Only ever shown on a local network, so it never reaches the
+// live site: on the old build the badge is absent entirely.
+const IS_LOCAL = /^(localhost|127\.0\.0\.1|::1|\[::1\]|.*\.local)$/i.test(location.hostname)
+  || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+
+let buildNote = 'frames loading';
+function showBuild(note) {
+  if (note) buildNote = note;
+  if (!IS_LOCAL) return;
+  const el = document.getElementById('build');
+  el.hidden = false;
+  el.textContent = `${isPortrait() ? 'contain' : 'cover'} · ${buildNote}`;
+}
+
 function frameSrc(set, n) {
   return set.src.replace('%04d', String(n).padStart(4, '0'));
 }
@@ -94,6 +118,7 @@ function loadImage(src) {
 (async function () {
   resize();
   paintBackdrop();
+  showBuild();
 
   // Scrolling is live before a single frame has arrived, so the page is usable
   // the moment it opens and the frames fill in underneath it.
@@ -102,9 +127,16 @@ function loadImage(src) {
   gsap.ticker.add((time) => { lenis.raf(time * 1000); });
   gsap.ticker.lagSmoothing(0);
 
-  const manifest = await fetch('public/frames/manifest.json').then((r) => r.json());
+  let manifest;
+  try {
+    manifest = await fetch('public/frames/manifest.json').then((r) => r.json());
+  } catch (err) {
+    showBuild('NO FRAMES — run scripts/build-frames.sh');
+    throw err;
+  }
   const clip = manifest.clips.find((c) => c.id === 'clip-01');
   const set = pickSet(clip.sets);
+  showBuild(`frames ${manifest.builtAt || 'unstamped'} · ${set.name} ${set.width}w`);
 
   const frames = new Array(clip.count);
   const state = { frame: 0 };
@@ -144,6 +176,7 @@ function loadImage(src) {
   addEventListener('resize', () => {
     resize();
     render();
+    showBuild();
     ScrollTrigger.refresh();
   });
 

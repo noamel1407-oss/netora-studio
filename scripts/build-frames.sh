@@ -87,5 +87,7 @@ for spec in "${CLIPS[@]}"; do
     "$id" "$COUNT" "$sets_json")
 done
 
-printf '{\n  "clips": [%s\n  ]\n}\n' "$entries" > public/frames/manifest.json
-echo "wrote public/frames/manifest.json"
+# Stamped so the page can show which frame build it is running against.
+built=$(date -u +%Y-%m-%dT%H:%MZ)
+printf '{\n  "builtAt": "%s",\n  "clips": [%s\n  ]\n}\n' "$built" "$entries" > public/frames/manifest.json
+echo "wrote public/frames/manifest.json (builtAt $built)"
