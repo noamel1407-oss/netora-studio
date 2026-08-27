@@ -101,7 +101,9 @@ export function VaultHero() {
         onUpdate: () => {
           const at = timeline?.progress() ?? 0;
           publishJourney(clamp01(at / share));
-          publishRoute(clamp01((at - share) / (1 - share)));
+          /* A zero-length act two leaves nothing to publish, and dividing by
+             the nothing it owns is how that would otherwise be discovered. */
+          publishRoute(share >= 1 ? 0 : clamp01((at - share) / (1 - share)));
         },
         scrollTrigger: {
           trigger: root,

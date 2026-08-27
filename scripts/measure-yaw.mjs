@@ -149,31 +149,48 @@ for (const panel of PANELS) {
 
 const [control, test] = results;
 
+/* 95%: the slope plus or minus about two standard errors. With ~500 columns
+   the t distribution is close enough to normal that 1.96 is honest. */
+const ci = (f) => [f.slope - 1.96 * f.stderr, f.slope + 1.96 * f.stderr];
+const asPanel = (value, r) => (value * r.span) / r.f.meanHeight;
+
 console.log('---');
-console.log(`Control (02) measures ${(control.acrossPanel * 100).toFixed(1)}% where the truth is 0.0%.`);
-console.log(`That is the method's noise floor: |slope| <= ${Math.abs(control.f.slope).toFixed(5)}.`);
-console.log();
+console.log('WHAT THE MEASUREMENT SUPPORTS\n');
 
-const clears = Math.abs(test.f.slope) > Math.abs(control.f.slope);
-const ratio = Math.abs(test.f.slope) / Math.abs(control.f.slope);
+const [lo, hi] = ci(test.f);
+console.log(`Test (03) slope    ${test.f.slope.toFixed(5)}   95% CI [${lo.toFixed(5)}, ${hi.toFixed(5)}]`);
+console.log(
+  `  across the panel  ${(asPanel(test.f.slope, test) * 100).toFixed(1)}%   ` +
+    `95% CI [${(asPanel(lo, test) * 100).toFixed(1)}%, ${(asPanel(hi, test) * 100).toFixed(1)}%]`,
+);
+const [clo, chi] = ci(control.f);
+console.log(`Control (02) slope ${control.f.slope.toFixed(5)}   95% CI [${clo.toFixed(5)}, ${chi.toFixed(5)}]`);
+console.log(`  its true value is exactly zero, and zero is inside that interval.\n`);
 
-if (!clears) {
-  console.log(`Test (03) measures ${Math.abs(test.f.slope).toFixed(5)}, which is BELOW the noise floor.`);
-  console.log('=> No yaw is detectable. The anchors are consistent with a lateral truck.');
-} else {
-  console.log(`Test (03) measures ${Math.abs(test.f.slope).toFixed(5)} — ${ratio.toFixed(1)}x the control.`);
-  if (ratio < 3) {
-    console.log('=> Same order as the method\'s own error. NOT a demonstration of yaw:');
-    console.log('   a real turn would put the test far outside the control, not beside it.');
-  } else {
-    console.log('=> Clears the noise floor by a wide margin. The camera DOES turn,');
-    console.log('   and act two needs yaw.');
-  }
-}
+const zeroInside = lo <= 0 && hi >= 0;
+console.log(
+  zeroInside
+    ? 'Zero lies inside the test\'s interval, and the test\'s point estimate is\nsmaller than the control\'s own error. => NO EVIDENCE OF YAW.'
+    : 'Zero lies OUTSIDE the test\'s interval. => THE CAMERA TURNS.',
+);
 
-/* What a turn would have to look like to be visible here at all. */
-const detectable = 3 * Math.abs(control.f.slope) * test.span / test.f.meanHeight;
-console.log();
-console.log(`Sensitivity: this method could only see a turn large enough to change`);
-console.log(`the panel's height by ${(detectable * 100).toFixed(1)}% across its width. Anything`);
-console.log(`smaller is invisible to it, and is also invisible on screen.`);
+console.log(`
+What this does NOT establish
+----------------------------
+It does not put the rotation "under a degree". A point estimate is not a
+bound, and the interval above is what the data constrain — anything inside it
+is consistent with these pixels. Converting that interval into degrees needs
+the render's focal length, which the references do not state, so the bound is
+left in the units that were actually measured.
+
+The weaker, separate statement is detection: a slope has to clear the
+control's error to be visible to this method at all, so a turn small enough to
+change the panel's height by less than ~${(Math.abs(control.f.slope) * test.span / test.f.meanHeight * 100).toFixed(0)}% across its width could be present
+and unseen here.
+
+What it does establish is the thing the route needs: there is no evidence for
+a turn between 02 and 03, and a corridor built parallel to the approach is
+consistent with the anchors. If the greybox renders then reproduce those
+compositions without rotation, the parallel reading stands on two legs rather
+than one.
+`);

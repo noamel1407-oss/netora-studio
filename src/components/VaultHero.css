@@ -183,7 +183,7 @@
     --act-one-h: 860svh;
     /* The same ratio, so the share act one owns is one number on every
        viewport and the mapping below never has to care which one it is on. */
-    --act-two-h: 717svh;
+    --act-two-h: 900svh;
   }
 }
 

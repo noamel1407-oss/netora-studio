@@ -601,7 +601,10 @@ function keysFor(scene: Scene) {
 }
 
 /** The frame settles from the painting's vanishing point to the middle. */
-const VP_SETTLES: [number, number] = [1.09, 1.18];
+/* Finished before the first anchor is reached, and started only once the
+   platform is behind the lens — a frame that is still settling while the
+   reader is looking at a composition is a composition they are not seeing. */
+const VP_SETTLES: [number, number] = [1.075, 1.15];
 const ROUTE_VP = { x: 0.5, y: 0.52 };
 
 function keyframeAt(t: number, scene: Scene): { x: number; z: number } {

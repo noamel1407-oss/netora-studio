@@ -56,25 +56,55 @@ export function RouteGreybox({ scene }: Props) {
   const place = useMemo(() => {
     const px = (x: number) => scene.vp.x + x * scene.sx;
     const py = (y: number) => scene.vp.y + y * scene.sy;
-    const size = (n: number) => `${(n * scene.s).toFixed(1)}px`;
+    /*
+     * This world scales x by `sx`, y by `sy`, and z not at all — that is what
+     * `px`/`py` above do and what every `translate3d`'s third argument does.
+     * So an extent has to be scaled by the axis it lies along, and the uniform
+     * `s` that suits a small object is wrong for anything spanning depth: at
+     * `s` = 0.9 a floor band reached only nine tenths of the way to the next
+     * one, which is exactly the seam that opened between them.
+     */
+    const across = (n: number) => `${(n * scene.sx).toFixed(2)}px`;
+    const tall = (n: number) => `${(n * scene.sy).toFixed(2)}px`;
+    const deep = (n: number) => `${n.toFixed(2)}px`;
+    /* An object, rather than the enclosure. `sx` and `sy` differ by viewport,
+       so a rectangle sized by them changes shape with the window — fine for a
+       wall, which only has to meet its own corners, and wrong for anything
+       with a shape of its own. Act one keeps `s` for exactly this. */
+    const objectSize = (n: number) => `${(n * scene.s).toFixed(2)}px`;
 
     return {
+      /** Something hanging on a wall, which keeps its own proportions. */
+      panel: (x0: number, x1: number, y0: number, y1: number, z: number): CSSProperties => ({
+        width: objectSize(x1 - x0),
+        height: objectSize(y1 - y0),
+        transform: `translate3d(${px(x0).toFixed(1)}px, ${py(y0).toFixed(1)}px, ${z}px)`,
+      }),
       /** A plane facing the camera: the plane of a wall. */
       wall: (x0: number, x1: number, y0: number, y1: number, z: number): CSSProperties => ({
-        width: size(x1 - x0),
-        height: size(y1 - y0),
+        width: across(x1 - x0),
+        height: tall(y1 - y0),
         transform: `translate3d(${px(x0).toFixed(1)}px, ${py(y0).toFixed(1)}px, ${z}px)`,
       }),
       /** A plane underfoot or overhead, laid down the z axis. */
       deck: (x0: number, x1: number, z0: number, z1: number, y: number): CSSProperties => ({
-        width: size(x1 - x0),
-        height: size(z0 - z1),
-        transform: `translate3d(${px(x0).toFixed(1)}px, ${py(y).toFixed(1)}px, ${z0}px) rotateX(90deg)`,
+        width: across(x1 - x0),
+        /* Laid down the z axis by the rotate below, so its extent is depth. */
+        height: deep(z0 - z1),
+        /*
+         * Anchored at its far end. `rotateX(90deg)` swings the element's own
+         * +y — which points down the screen — round to +z, and +z is *toward*
+         * the viewer. So a deck placed at its near edge grows the wrong way
+         * and every floor ends up one band closer than it should be, which is
+         * how the hall's floor came to stop short of the camera standing on
+         * it.
+         */
+        transform: `translate3d(${px(x0).toFixed(1)}px, ${py(y).toFixed(1)}px, ${z1}px) rotateX(90deg)`,
       }),
       /** A plane stood on edge, running away from the camera. */
       side: (x: number, y0: number, y1: number, z0: number, z1: number): CSSProperties => ({
-        width: size(z0 - z1),
-        height: size(y1 - y0),
+        width: deep(z0 - z1),
+        height: tall(y1 - y0),
         transform: `translate3d(${px(x).toFixed(1)}px, ${py(y0).toFixed(1)}px, ${z0}px) rotateY(90deg)`,
       }),
     };
@@ -97,12 +127,25 @@ export function RouteGreybox({ scene }: Props) {
 
   const { facade, hall, wall, display, plaza } = ROUTE;
 
-  /** A run of depth, cut into pieces small enough not to span the lens. */
-  const bands = (from: number, to: number, count: number) =>
-    Array.from({ length: count }, (_, i) => [
+  /**
+   * A run of depth, cut into pieces.
+   *
+   * By a fixed length rather than a fixed count, because what matters is how
+   * long the *one* piece the camera is standing in happens to be: CSS clips a
+   * plane that spans the lens, so that piece never draws, and its length is
+   * the size of the hole it leaves at the bottom of the frame. At 250 units
+   * the hole projects below the frame's edge and is never seen; at the 750 a
+   * six-way split produced, a strip of the world showed through under the
+   * floor.
+   */
+  const BAND = 250;
+  const bands = (from: number, to: number) => {
+    const count = Math.max(1, Math.ceil(Math.abs(to - from) / BAND));
+    return Array.from({ length: count }, (_, i) => [
       from + ((to - from) * i) / count,
       from + ((to - from) * (i + 1)) / count,
     ] as [number, number]);
+  };
 
   return (
     <div className="grey" ref={rootRef} aria-hidden="true">
@@ -116,7 +159,7 @@ export function RouteGreybox({ scene }: Props) {
         ahead keep drawing while the ones passed drop out — which is also what
         gives a flat greybox floor something to read distance against.
       */}
-      {bands(plaza.from, plaza.to, 10).map(([from, to]) => (
+      {bands(plaza.from, plaza.to).map(([from, to]) => (
         <i key={from} className="grey__face grey__face--floor" style={place.deck(-5200, 5200, from, to, GROUND)} />
       ))}
 
@@ -126,13 +169,13 @@ export function RouteGreybox({ scene }: Props) {
       <i className="grey__face grey__face--mass" data-part="facade" style={place.wall(facade.door.x[0], facade.door.x[1], facade.top, facade.door.top, facade.z)} />
 
       {/* The hall. */}
-      {bands(hall.from, hall.to, 6).map(([from, to]) => (
+      {bands(hall.from, hall.to).map(([from, to]) => (
         <i key={from} className="grey__face grey__face--floor" style={place.deck(hall.x[0], hall.x[1], from, to, GROUND)} />
       ))}
-      {bands(hall.from, hall.to, 6).map(([from, to]) => (
+      {bands(hall.from, hall.to).map(([from, to]) => (
         <i key={`c${from}`} className="grey__face grey__face--ceil" style={place.deck(hall.x[0], hall.x[1], from, to, hall.top)} />
       ))}
-      {bands(hall.from, hall.to, 6).flatMap(([from, to]) => [
+      {bands(hall.from, hall.to).flatMap(([from, to]) => [
         <i key={`l${from}`} className="grey__face grey__face--side" style={place.side(hall.x[0], hall.top, GROUND, from, to)} />,
         <i key={`r${from}`} className="grey__face grey__face--side" style={place.side(hall.x[1], hall.top, GROUND, from, to)} />,
       ])}
@@ -149,7 +192,7 @@ export function RouteGreybox({ scene }: Props) {
           the camera halts, and nothing on the route goes further. */}
       <div
         className="grey__display"
-        style={place.wall(display.x[0], display.x[1], display.y[0], display.y[1], wall.z + 20)}
+        style={place.panel(display.x[0], display.x[1], display.y[0], display.y[1], wall.z + 20)}
       >
         <ProjectScreen
           src={watch?.thumbnail ?? null}

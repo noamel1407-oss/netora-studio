@@ -48,7 +48,7 @@ const VIEW = { width: 1440, height: 810 };
  * all of these are act two.
  */
 const ANCHORS = [
-  { id: '01', travel: 1.18, file: '01-shay-to-timematic', of: 'across the plaza, TIMEMATIC ahead' },
+  { id: '01', travel: 1.155, file: '01-shay-to-timematic', of: 'across the plaza, TIMEMATIC ahead' },
   { id: '02', travel: 1.92, file: '02-timematic-portfolio-stop', of: 'the stop, square to the display' },
 ];
 

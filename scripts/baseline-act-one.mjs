@@ -481,7 +481,27 @@ async function verify() {
       const delta = Math.max(...a.grid.map((v, n) => Math.abs(v - b.grid[n])));
       worstGrid = Math.max(worstGrid, delta);
       if (delta > 6) {
-        if (repainted < 3) fail(`${name} @${a.scrollY}px: the frame renders differently (${delta}/255)`);
+        /* Which bands of the frame moved. A difference confined to the bottom
+           rows is the container's own edge treatment; one spread through the
+           middle is the journey. Saying which costs one line and saves an
+           argument. */
+        const rows = [];
+        for (let row = 0; row < GRID.h; row += 1) {
+          let worst = 0;
+          for (let col = 0; col < GRID.w; col += 1) {
+            const n = row * GRID.w + col;
+            worst = Math.max(worst, Math.abs(a.grid[n] - b.grid[n]));
+          }
+          if (worst > 6) rows.push(row);
+        }
+        const where =
+          rows.length === 0
+            ? ''
+            : ` — rows ${rows[0]}-${rows[rows.length - 1]} of ${GRID.h}` +
+              ` (${((rows[0] / GRID.h) * 100).toFixed(0)}%-${(((rows[rows.length - 1] + 1) / GRID.h) * 100).toFixed(0)}% down the frame)`;
+        if (repainted < 3) {
+          fail(`${name} @${a.scrollY}px: the frame renders differently (${delta}/255)${where}`);
+        }
         repainted += 1;
       }
     }
