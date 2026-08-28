@@ -202,36 +202,44 @@ function loadImage(src) {
     showBuild('NO FRAMES — run scripts/build-frames.sh');
     throw err;
   }
-  const clip = manifest.clips.find((c) => c.id === 'clip-01');
-  const set = pickSet(clip.sets);
-  showBuild(`frames ${manifest.builtAt || 'unstamped'} · ${set.name} ${set.width}w`);
+  const seq = manifest.sequence;
+  const set = pickSet(seq.sets);
+  const built = (manifest.builtAt || 'unstamped').slice(5).replace('T', ' ').replace('Z', '');
+  showBuild(`${set.name} ${set.width}w · ${seq.frames}f/${seq.count}p · ${built}`);
 
-  const frames = new Array(clip.count);
-  const state = { frame: 0 };
+  // The three clips are one timeline. `map` turns a scroll position into an
+  // image index, so the hold at the open door costs repeated positions rather
+  // than repeated files — the held frame is fetched once.
+  const map = seq.map;
+  const images = new Array(seq.frames);
+  const state = { pos: 0 };
   let shown = -1;
 
-  // Scrolling ahead of the loader holds on the nearest frame that has arrived
+  const wanted = () =>
+    map[Math.min(Math.max(Math.round(state.pos), 0), map.length - 1)];
+
+  // Scrolling ahead of the loader holds on the nearest image that has arrived
   // rather than blanking the canvas.
   function nearest(i) {
-    if (frames[i]) return i;
-    for (let d = 1; d < frames.length; d++) {
-      if (frames[i - d]) return i - d;
-      if (frames[i + d]) return i + d;
+    if (images[i]) return i;
+    for (let d = 1; d < images.length; d++) {
+      if (images[i - d]) return i - d;
+      if (images[i + d]) return i + d;
     }
     return -1;
   }
 
   function render() {
-    const i = nearest(state.frame);
+    const i = nearest(wanted());
     if (i < 0) return;
-    draw(frames[i]);
+    draw(images[i]);
     shown = i;
   }
 
   gsap.to(state, {
-    frame: clip.count - 1,
+    pos: seq.count - 1,
     ease: 'none',
-    snap: 'frame',
+    snap: 'pos',
     scrollTrigger: {
       trigger: '#scroll',
       start: 'top top',
@@ -250,9 +258,9 @@ function loadImage(src) {
     ScrollTrigger.refresh();
   });
 
-  // First frame on its own, so something is on screen as early as possible.
+  // First image on its own, so something is on screen as early as possible.
   try {
-    frames[0] = await loadImage(frameSrc(set, 1));
+    images[0] = await loadImage(frameSrc(set, 1));
     render();
   } catch (err) {
     console.warn('first frame failed:', err.message);
@@ -262,11 +270,12 @@ function loadImage(src) {
   // match for wherever the scroll has already got to.
   let cursor = 1;
   await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
-    while (cursor < clip.count) {
+    while (cursor < seq.frames) {
       const i = cursor++;
       try {
-        frames[i] = await loadImage(frameSrc(set, i + 1));
-        if (Math.abs(i - state.frame) < Math.abs(shown - state.frame)) render();
+        images[i] = await loadImage(frameSrc(set, i + 1));
+        const want = wanted();
+        if (Math.abs(i - want) < Math.abs(shown - want)) render();
       } catch (err) {
         console.warn('frame failed:', err.message);
       }
