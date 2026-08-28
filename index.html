@@ -622,12 +622,11 @@ function beatText(p){
 }
 
 // ---------- travel constants ----------
-// The door swings 88 degrees, so the body clears the opening and the camera
+// The door swings 85.5 degrees, so the body clears the opening and the camera
 // passes it with room to spare (reference/ref-05-open.jpg). At 71.6 deg it
-// still stood in the way, and at 100 deg the disc grazed the left side wall.
-// Known, not yet resolved: the disc still overlaps the left banner by 26 mm and
-// the left urn by 3 mm at full swing. Both clear completely below 85.86 deg.
-var DOOR_OPEN = -88 * Math.PI / 180;    // -1.53589 rad
+// still stood in the way. 85.5 also keeps the disc clear of the left banner
+// (first contact 85.86 deg), the left urn (87.86 deg) and the left side wall.
+var DOOR_OPEN = -85.5 * Math.PI / 180;  // -1.49226 rad
 
 // The camera keeps going straight through the opening, past the wall and the
 // recess, until what lies beyond fills the frame. Forward only.
