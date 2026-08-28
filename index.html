@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>נטורה — הכספת</title>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;500&family=Heebo:wght@200;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ivory:#ECE4D6;
+    --gold:#C9A961;
+    --navy:#0E1A33;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#0a0d14;overscroll-behavior:none}
+  body{font-family:'Heebo',system-ui,sans-serif}
+  #scroll{height:760vh}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+
+  .ui{position:fixed;inset:0;z-index:2;pointer-events:none}
+
+  .mark{
+    position:absolute;top:calc(env(safe-area-inset-top) + 26px);left:0;right:0;
+    text-align:center;font-family:'Frank Ruhl Libre',serif;font-weight:300;
+    font-size:13px;letter-spacing:.42em;color:var(--ivory);opacity:.72;
+    text-indent:.42em;
+  }
+
+  .beat{
+    position:absolute;bottom:calc(env(safe-area-inset-bottom) + 30px);left:0;right:0;
+    text-align:center;font-size:11.5px;font-weight:200;letter-spacing:.16em;
+    color:var(--ivory);opacity:.4;transition:opacity .35s ease;
+  }
+
+  .hint{
+    position:absolute;bottom:calc(env(safe-area-inset-bottom) + 62px);left:0;right:0;
+    text-align:center;font-size:11px;font-weight:200;letter-spacing:.2em;
+    color:var(--gold);opacity:.75;transition:opacity .5s ease;
+  }
+  .hint span{display:inline-block;animation:drift 2.4s ease-in-out infinite}
+  @keyframes drift{0%,100%{transform:translateY(0);opacity:.75}50%{transform:translateY(5px);opacity:.35}}
+
+  .rail{
+    position:absolute;top:22%;bottom:22%;left:14px;width:1px;
+    background:rgba(236,228,214,.13);
+  }
+  .rail i{
+    position:absolute;top:0;left:-1px;width:3px;height:0%;
+    background:var(--gold);box-shadow:0 0 8px rgba(201,169,97,.55);
+  }
+
+  /* ---------- hero layer (task 3) — real HTML above the canvas ---------- */
+  /* Anchored by its TOP, not centred: the second line can wrap to any number of
+     lines when the final copy arrives without the first line moving. */
+  .hero{
+    position:absolute;left:0;right:0;top:41%;
+    padding:0 24px;text-align:center;pointer-events:none;opacity:0;
+  }
+  /* a wide, soft scrim, so ivory type still reads once the plaza fills the frame */
+  .hero::before{
+    content:'';position:absolute;left:-22%;right:-22%;top:-85%;bottom:-85%;z-index:-1;
+    background:radial-gradient(closest-side,
+      rgba(8,12,22,.50) 0%,  rgba(8,12,22,.40) 28%, rgba(8,12,22,.24) 50%,
+      rgba(8,12,22,.10) 70%, rgba(8,12,22,.03) 86%, rgba(8,12,22,0) 100%);
+  }
+  .hero .l1{
+    font-family:'Frank Ruhl Libre',serif;font-weight:300;
+    font-size:clamp(40px,13.5vw,92px);line-height:1.04;
+    letter-spacing:.30em;text-indent:.30em;color:var(--ivory);
+    text-shadow:0 2px 26px rgba(8,12,22,.92), 0 0 9px rgba(8,12,22,.6);
+    min-height:1.04em;
+  }
+  .hero .l2{
+    margin:20px auto 0;max-width:22em;font-weight:200;
+    font-size:clamp(13px,4.1vw,21px);line-height:1.95;letter-spacing:.085em;
+    color:var(--ivory);opacity:.92;
+    text-shadow:0 1px 16px rgba(8,12,22,.92);
+    min-height:3.9em;   /* two lines reserved, so the block never jumps as it wraps */
+  }
+  .hero .cur{
+    display:inline-block;width:2px;height:.86em;margin:0 .12em;
+    vertical-align:-.08em;background:var(--gold);
+    box-shadow:0 0 10px rgba(201,169,97,.85);opacity:0;
+  }
+  .hero .cur.on{opacity:1}
+
+  @media (prefers-reduced-motion:reduce){.hint span{animation:none}}
+</style>
+</head>
+<body>
+<div id="scroll"></div>
+
+<div class="ui">
+  <div class="mark">NETORA</div>
+  <div class="rail"><i id="rail"></i></div>
+  <div class="hint" id="hint"><span>גלול</span></div>
+  <div class="beat" id="beat">הכספת נעולה</div>
+
+  <div class="hero" id="hero">
+    <div class="l1" dir="ltr"><span id="h1"></span><i class="cur" id="c1"></i></div>
+    <div class="l2" dir="rtl"><span id="h2"></span><i class="cur" id="c2"></i></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+// ---------- helpers ----------
+var clamp01 = function(v){ return v<0?0:(v>1?1:v); };
+var seg = function(p,a,b){ return clamp01((p-a)/(b-a)); };
+var easeInOut = function(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; };
+var easeOut = function(t){ return 1-Math.pow(1-t,3); };
+
+// ---------- renderer ----------
+var renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.02;
+document.body.appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0b1120, 0.012);
+
+var camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(0, 1.62, 8.0);
+camera.rotation.set(0,0,0);
+
+// ---------- environment (so metal has something to reflect) ----------
+function envTexture(){
+  var c = document.createElement('canvas'); c.width=512; c.height=256;
+  var x = c.getContext('2d');
+  var g = x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0.00,'#2b3550');
+  g.addColorStop(0.34,'#8e8064');
+  g.addColorStop(0.50,'#d8c39a');
+  g.addColorStop(0.62,'#6d6350');
+  g.addColorStop(1.00,'#141a26');
+  x.fillStyle=g; x.fillRect(0,0,512,256);
+  var s = x.createRadialGradient(150,120,4,150,120,110);
+  s.addColorStop(0,'rgba(255,236,196,.95)');
+  s.addColorStop(1,'rgba(255,236,196,0)');
+  x.fillStyle=s; x.fillRect(0,0,512,256);
+  var s2 = x.createRadialGradient(380,132,4,380,132,80);
+  s2.addColorStop(0,'rgba(255,224,176,.6)');
+  s2.addColorStop(1,'rgba(255,224,176,0)');
+  x.fillStyle=s2; x.fillRect(0,0,512,256);
+  var t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+var pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+scene.environment = pmrem.fromEquirectangular(envTexture()).texture;
+
+// ---------- marble ----------
+function marbleTexture(rep){
+  var c = document.createElement('canvas'); c.width=1024; c.height=1024;
+  var x = c.getContext('2d');
+  x.fillStyle='#ece4d6'; x.fillRect(0,0,1024,1024);
+  for(var i=0;i<40;i++){
+    var r = 80+Math.random()*220;
+    var g = x.createRadialGradient(Math.random()*1024,Math.random()*1024,2,Math.random()*1024,Math.random()*1024,r);
+    g.addColorStop(0,'rgba(214,201,178,.16)');
+    g.addColorStop(1,'rgba(214,201,178,0)');
+    x.fillStyle=g; x.fillRect(0,0,1024,1024);
+  }
+  x.lineCap='round';
+  for(var v=0;v<26;v++){
+    var px=Math.random()*1024, py=Math.random()*1024;
+    x.beginPath(); x.moveTo(px,py);
+    var steps=6+(Math.random()*6|0);
+    for(var s=0;s<steps;s++){
+      px += (Math.random()-0.5)*280; py += (Math.random()-0.35)*260;
+      x.lineTo(px,py);
+    }
+    x.strokeStyle='rgba(150,140,124,'+(0.05+Math.random()*0.10).toFixed(3)+')';
+    x.lineWidth=0.6+Math.random()*2.4;
+    x.shadowColor='rgba(150,140,124,.28)'; x.shadowBlur=6;
+    x.stroke();
+  }
+  x.shadowBlur=0;
+  var t = new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.repeat.set(rep,rep);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+// ---------- monogram plate texture (navy field + gold N + stud ring) ----------
+function monogramTexture(){
+  var S = 512;
+  var c = document.createElement('canvas'); c.width=S; c.height=S;
+  var x = c.getContext('2d');
+  // navy field with a soft highlight, like the reference
+  var g = x.createRadialGradient(S*0.40, S*0.34, 10, S*0.5, S*0.5, S*0.56);
+  g.addColorStop(0.00,'#2C4A7C');
+  g.addColorStop(0.45,'#1B3462');
+  g.addColorStop(1.00,'#0C1A38');
+  x.fillStyle = g;
+  x.beginPath(); x.arc(S/2,S/2,S/2,0,Math.PI*2); x.fill();
+  // ring of small studs just inside the edge
+  var studR = S*0.415;
+  for(var i=0;i<44;i++){
+    var a = (i/44)*Math.PI*2;
+    var sx = S/2 + Math.cos(a)*studR;
+    var sy = S/2 + Math.sin(a)*studR;
+    var sg = x.createRadialGradient(sx-1.4, sy-1.4, 0.4, sx, sy, 5.2);
+    sg.addColorStop(0,'#F2D9A6');
+    sg.addColorStop(1,'#8A6B33');
+    x.fillStyle = sg;
+    x.beginPath(); x.arc(sx,sy,4.6,0,Math.PI*2); x.fill();
+  }
+  // thin inner circle
+  x.strokeStyle = 'rgba(196,160,96,.55)';
+  x.lineWidth = 2.2;
+  x.beginPath(); x.arc(S/2,S/2,S*0.362,0,Math.PI*2); x.stroke();
+  // the N
+  var ng = x.createLinearGradient(S*0.30, S*0.28, S*0.70, S*0.74);
+  ng.addColorStop(0.00,'#F6E3B4');
+  ng.addColorStop(0.40,'#C79B52');
+  ng.addColorStop(0.68,'#E8CE96');
+  ng.addColorStop(1.00,'#9A7434');
+  x.fillStyle = ng;
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.font = '600 ' + Math.round(S*0.50) + 'px "Frank Ruhl Libre", Georgia, "Times New Roman", serif';
+  x.shadowColor = 'rgba(0,0,0,.55)';
+  x.shadowBlur = 10;
+  x.shadowOffsetY = 4;
+  x.fillText('N', S/2, S*0.52);
+  x.shadowBlur = 0; x.shadowOffsetY = 0;
+
+  var t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+// ---------- materials ----------
+var matMarble = new THREE.MeshStandardMaterial({map:marbleTexture(3), color:0xffffff, roughness:0.52, metalness:0.04});
+var matFloor  = new THREE.MeshStandardMaterial({map:marbleTexture(6), color:0xffffff, roughness:0.13, metalness:0.12, envMapIntensity:1.15});
+var matGold   = new THREE.MeshStandardMaterial({color:0xC9A961, roughness:0.26, metalness:1.0, envMapIntensity:1.35});
+var matGoldD  = new THREE.MeshStandardMaterial({color:0x9d8148, roughness:0.38, metalness:1.0});
+// warmer brass for the mechanism, as in the reference clip
+var matBrass  = new THREE.MeshStandardMaterial({color:0xC08F4E, roughness:0.29, metalness:1.0, envMapIntensity:1.30});
+var matBrassD = new THREE.MeshStandardMaterial({color:0x8A6533, roughness:0.42, metalness:1.0});
+var matSteel  = new THREE.MeshStandardMaterial({color:0x18223A, roughness:0.33, metalness:0.9,  envMapIntensity:1.1});
+var matSteelD = new THREE.MeshStandardMaterial({color:0x101827, roughness:0.46, metalness:0.85});
+var matHinge  = new THREE.MeshStandardMaterial({color:0x0C1220, roughness:0.30, metalness:0.95, envMapIntensity:1.2});
+var matBanner = new THREE.MeshStandardMaterial({color:0x101F45, roughness:0.86, metalness:0.0, side:THREE.DoubleSide});
+
+// ---------- dimensions ----------
+var HALLW = 2.62;      // half width of the hall
+var HALLH = 6.4;       // ceiling height
+var HOLE_R = 1.72;     // radius of the opening in the wall
+var HOLE_Y = 1.95;     // centre height of the opening
+var WALLT = 0.95;      // wall thickness (the recess)
+var DOOR_R = 1.62;
+var DOOR_T = 0.44;
+var DOOR_Z = -0.46;
+
+var FACE_Z   = DOOR_T/2;        // front plane of the main disc
+var STEP_Z   = DOOR_T/2 + 0.05; // front plane of the raised inner disc
+var MECH_Z   = STEP_Z + 0.035;  // the mechanism sits just proud of it, still flush
+var MONO_R   = DOOR_R * 0.29;   // monogram plate radius, matched to the reference
+
+// ---------- floor ----------
+var floor = new THREE.Mesh(new THREE.PlaneGeometry(HALLW*2, 46), matFloor);
+floor.rotation.x = -Math.PI/2;
+floor.position.set(0,0,-11);
+scene.add(floor);
+
+// single thin gold inlay line
+var line = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, 46), matGold);
+line.position.set(0, 0.006, -11);
+scene.add(line);
+
+// ---------- ceiling ----------
+var ceil = new THREE.Mesh(new THREE.PlaneGeometry(HALLW*2, 26), matMarble);
+ceil.rotation.x = Math.PI/2;
+ceil.position.set(0, HALLH, -1);
+scene.add(ceil);
+
+// ---------- side walls ----------
+[-1,1].forEach(function(sx){
+  var w = new THREE.Mesh(new THREE.PlaneGeometry(26, HALLH), matMarble);
+  w.rotation.y = -sx*Math.PI/2;
+  w.position.set(sx*HALLW, HALLH/2, -1);
+  scene.add(w);
+});
+
+// ---------- front wall with a circular hole (the recess) ----------
+var shape = new THREE.Shape();
+shape.moveTo(-HALLW, 0); shape.lineTo(HALLW, 0); shape.lineTo(HALLW, HALLH); shape.lineTo(-HALLW, HALLH); shape.lineTo(-HALLW,0);
+var hole = new THREE.Path();
+hole.absarc(0, HOLE_Y, HOLE_R, 0, Math.PI*2, true);
+shape.holes.push(hole);
+var wall = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {depth:WALLT, bevelEnabled:false, curveSegments:64}), matMarble);
+wall.position.z = -WALLT;
+scene.add(wall);
+
+// gold ring framing the opening
+var frameRing = new THREE.Mesh(new THREE.TorusGeometry(HOLE_R+0.035, 0.022, 8, 96), matGold);
+frameRing.position.set(0, HOLE_Y, 0.005);
+scene.add(frameRing);
+
+// pilasters flanking the opening
+[-1,1].forEach(function(sx){
+  var p = new THREE.Mesh(new THREE.BoxGeometry(0.30, HALLH, 0.20), matMarble);
+  p.position.set(sx*(HALLW-0.20), HALLH/2, 0.10);
+  scene.add(p);
+  var cap = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.10, 0.28), matGoldD);
+  cap.position.set(sx*(HALLW-0.20), HALLH-0.62, 0.12);
+  scene.add(cap);
+});
+
+// blue banners with a gold monogram ring
+[-1,1].forEach(function(sx){
+  var b = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 1.75), matBanner);
+  b.position.set(sx*(HALLW-0.42), 3.55, 0.24);
+  scene.add(b);
+  var m = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.011, 8, 40), matGold);
+  m.position.set(sx*(HALLW-0.42), 3.62, 0.255);
+  scene.add(m);
+  var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.62,10), matGoldD);
+  rod.rotation.z = Math.PI/2;
+  rod.position.set(sx*(HALLW-0.42), 4.44, 0.24);
+  scene.add(rod);
+});
+
+// urns at the base
+[-1,1].forEach(function(sx){
+  var base = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.20,0.20,16), matMarble);
+  base.position.set(sx*(HALLW-0.46), 0.10, 0.62); scene.add(base);
+  var body = new THREE.Mesh(new THREE.SphereGeometry(0.235,18,14), matMarble);
+  body.scale.set(1,1.28,1); body.position.set(sx*(HALLW-0.46), 0.46, 0.62); scene.add(body);
+  var lip = new THREE.Mesh(new THREE.TorusGeometry(0.155,0.022,7,22), matMarble);
+  lip.rotation.x = Math.PI/2; lip.position.set(sx*(HALLW-0.46), 0.72, 0.62); scene.add(lip);
+});
+
+// ---------- what lies beyond (placeholder — later replaced by the plaza still) ----------
+var beyond = new THREE.Group();
+scene.add(beyond);
+var glowPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(26, 16),
+  new THREE.MeshBasicMaterial({color:0xF2DCB0})
+);
+glowPlane.position.set(0, 4, -19);
+beyond.add(glowPlane);
+[[-4.2,-13.5,3.2],[4.4,-14.5,3.8],[-1.9,-16.5,2.4],[2.1,-15.8,2.0]].forEach(function(b){
+  var m = new THREE.Mesh(new THREE.BoxGeometry(2.6, b[2], 2.0), matMarble);
+  m.position.set(b[0], b[2]/2, b[1]);
+  beyond.add(m);
+});
+for(var ci=-3; ci<=3; ci++){
+  var col = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.18,3.0,12), matMarble);
+  col.position.set(ci*1.5, 1.5, -11.4);
+  beyond.add(col);
+}
+var outFloor = new THREE.Mesh(new THREE.PlaneGeometry(40, 30), matFloor);
+outFloor.rotation.x = -Math.PI/2; outFloor.position.set(0, 0, -14);
+beyond.add(outFloor);
+
+// ---------- the vault door ----------
+var hinge = new THREE.Group();                 // pivot on the LEFT edge of the opening
+hinge.position.set(-HOLE_R, HOLE_Y, DOOR_Z);
+scene.add(hinge);
+
+var door = new THREE.Group();
+door.position.set(HOLE_R, 0, 0);               // door centre sits back on the axis
+hinge.add(door);
+
+// main disc
+var disc = new THREE.Mesh(new THREE.CylinderGeometry(DOOR_R, DOOR_R, DOOR_T, 72), matSteel);
+disc.rotation.x = Math.PI/2;
+door.add(disc);
+
+// stepped inner disc (front face relief)
+var step = new THREE.Mesh(new THREE.CylinderGeometry(DOOR_R*0.86, DOOR_R*0.86, DOOR_T+0.10, 64), matSteelD);
+step.rotation.x = Math.PI/2;
+door.add(step);
+
+// gold rim
+var rim = new THREE.Mesh(new THREE.TorusGeometry(DOOR_R-0.012, 0.035, 10, 80), matGold);
+rim.position.z = FACE_Z - 0.01; door.add(rim);
+
+// concentric bands on the outer collar and on the raised face
+[[DOOR_R*0.935, 0.020, FACE_Z + 0.012],
+ [DOOR_R*0.755, 0.017, STEP_Z + 0.010],
+ [DOOR_R*0.560, 0.015, STEP_Z + 0.010]].forEach(function(b){
+  var r = new THREE.Mesh(new THREE.TorusGeometry(b[0], b[1], 8, 80), matBrass);
+  r.position.z = b[2]; door.add(r);
+});
+
+// rivets — outer ring on the collar, inner ring on the raised face
+function rivetRing(count, radius, z, size){
+  for(var i=0;i<count;i++){
+    var a = (i/count)*Math.PI*2;
+    var s = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 8), matBrass);
+    s.position.set(Math.cos(a)*radius, Math.sin(a)*radius, z);
+    s.scale.z = 0.6;
+    door.add(s);
+  }
+}
+rivetRing(28, DOOR_R*0.905, FACE_Z + 0.018, 0.035);
+rivetRing(20, DOOR_R*0.655, STEP_Z + 0.014, 0.028);
+
+// ================= THE MECHANISM =================
+// Everything here is FLUSH in the face of the door. Nothing protrudes forward
+// like a ship's wheel. It is the twelve radial bolt arms, a toothed ring and a
+// few small gears — exactly the arrangement in reference/ref-02 and ref-03.
+
+var mech = new THREE.Group();
+mech.position.z = MECH_Z;
+door.add(mech);
+
+// toothed ring around the monogram
+var gearRingR = DOOR_R * 0.41;
+var gearRing = new THREE.Mesh(new THREE.TorusGeometry(gearRingR, 0.030, 8, 84), matBrassD);
+mech.add(gearRing);
+for(var gt=0; gt<40; gt++){
+  var ga = (gt/40)*Math.PI*2;
+  var tooth = new THREE.Mesh(new THREE.BoxGeometry(0.060, 0.034, 0.036), matBrass);
+  tooth.position.set(Math.cos(ga)*(gearRingR+0.030), Math.sin(ga)*(gearRingR+0.030), 0);
+  tooth.rotation.z = ga;
+  mech.add(tooth);
+}
+
+// twelve radial bolt arms
+var BOLT_N       = 12;
+var BOLT_LEN     = 0.86;
+var BOLT_REST    = 0.94;   // distance from centre to the middle of the rod, at rest
+var BOLT_TRAVEL  = 0.22;   // how far it slides inward toward the hub
+var bolts = [];
+for(var i=0;i<BOLT_N;i++){
+  var a = (i/BOLT_N)*Math.PI*2;
+  var arm = new THREE.Group();
+  arm.rotation.z = a;
+  mech.add(arm);
+
+  var rod = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, BOLT_LEN, 14), matBrass);
+  rod.rotation.z = Math.PI/2;        // axis along local X (radial)
+  rod.position.x = BOLT_REST;
+  arm.add(rod);
+
+  var collar = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.13, 14), matBrassD);
+  collar.rotation.z = Math.PI/2;
+  collar.position.x = BOLT_REST + BOLT_LEN*0.30;
+  arm.add(collar);
+
+  var head = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.09, 14), matBrass);
+  head.rotation.z = Math.PI/2;
+  head.position.x = BOLT_REST + BOLT_LEN*0.50;
+  arm.add(head);
+
+  bolts.push({rod:rod, collar:collar, head:head, phase:i/BOLT_N});
+}
+
+// small gears sunk into the face between the arms
+var smallGears = [];
+[[0.00, 0.86], [Math.PI*0.5, 0.72], [Math.PI, 0.86], [Math.PI*1.5, 0.72]].forEach(function(sg, gi){
+  var g = new THREE.Group();
+  g.position.set(Math.cos(sg[0]+Math.PI/12)*sg[1], Math.sin(sg[0]+Math.PI/12)*sg[1], -0.012);
+  mech.add(g);
+  var body = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.045, 20), matBrassD);
+  body.rotation.x = Math.PI/2;
+  g.add(body);
+  for(var k=0;k<10;k++){
+    var ka = (k/10)*Math.PI*2;
+    var t2 = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.026, 0.045), matBrass);
+    t2.position.set(Math.cos(ka)*0.128, Math.sin(ka)*0.128, 0);
+    t2.rotation.z = ka;
+    g.add(t2);
+  }
+  smallGears.push({group:g, dir: gi%2 ? 1 : -1});
+});
+
+// hub cap at the centre of the mechanism
+var hubCap = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.34, 0.07, 28), matBrassD);
+hubCap.rotation.x = Math.PI/2;
+mech.add(hubCap);
+
+// ---- the monogram plate: a child of the DOOR, not of the mechanism, so the N
+// ---- stays upright while everything around it turns.
+var monoPlate = new THREE.Mesh(
+  new THREE.CircleGeometry(MONO_R, 64),
+  new THREE.MeshStandardMaterial({map:monogramTexture(), roughness:0.42, metalness:0.35, envMapIntensity:1.0})
+);
+monoPlate.position.z = MECH_Z + 0.055;
+door.add(monoPlate);
+
+var monoRing = new THREE.Mesh(new THREE.TorusGeometry(MONO_R+0.018, 0.040, 10, 64), matBrass);
+monoRing.position.z = MECH_Z + 0.050;
+door.add(monoRing);
+
+var monoBezel = new THREE.Mesh(new THREE.CylinderGeometry(MONO_R+0.055, MONO_R+0.055, 0.08, 48), matSteelD);
+monoBezel.rotation.x = Math.PI/2;
+monoBezel.position.z = MECH_Z + 0.020;
+door.add(monoBezel);
+
+// ================= THE HINGE BARREL =================
+// A child of the hinge group, so it swings with the door and keeps it attached
+// to the wall instead of floating.
+var barrel = new THREE.Group();
+barrel.position.set(0.16, 0, 0.30);
+hinge.add(barrel);
+
+var barrelBody = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 2.55, 20), matHinge);
+barrel.add(barrelBody);
+[-0.95, 0.0, 0.95].forEach(function(ky){
+  var knuckle = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.44, 20), matHinge);
+  knuckle.position.y = ky;
+  barrel.add(knuckle);
+  var band = new THREE.Mesh(new THREE.TorusGeometry(0.208, 0.020, 8, 28), matBrassD);
+  band.rotation.x = Math.PI/2;
+  band.position.y = ky + 0.24;
+  barrel.add(band);
+});
+// two arms tying the barrel back to the door body
+[-0.62, 0.62].forEach(function(ay){
+  var armLink = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.20, 0.16), matHinge);
+  armLink.position.set(0.34, ay, -0.10);
+  barrel.add(armLink);
+});
+
+// door edge shadow-catcher so it doesn't look pasted on
+var jamb = new THREE.Mesh(new THREE.TorusGeometry(HOLE_R+0.004, 0.030, 8, 80), matSteelD);
+jamb.position.set(0, HOLE_Y, -WALLT+0.02);
+scene.add(jamb);
+
+// ---------- lighting ----------
+scene.add(new THREE.HemisphereLight(0xdcd2bd, 0x1a1a24, 0.34));
+
+var sconceL = new THREE.PointLight(0xFFCE8A, 5.2, 9, 2);
+sconceL.position.set(-(HALLW-0.30), 2.85, 0.45); scene.add(sconceL);
+var sconceR = new THREE.PointLight(0xFFCE8A, 5.2, 9, 2);
+sconceR.position.set( (HALLW-0.30), 2.85, 0.45); scene.add(sconceR);
+
+[-1,1].forEach(function(sx){
+  var lamp = new THREE.Mesh(new THREE.SphereGeometry(0.075,12,10), new THREE.MeshBasicMaterial({color:0xFFE2B4}));
+  lamp.position.set(sx*(HALLW-0.30), 2.85, 0.42); scene.add(lamp);
+});
+
+var fill = new THREE.DirectionalLight(0xBFD0E8, 0.30);
+fill.position.set(0.6, 3.2, 7.0); scene.add(fill);
+
+// a soft key aimed at the door face so the brass reads
+var doorKey = new THREE.PointLight(0xFFE0B0, 2.4, 8, 2);
+doorKey.position.set(-0.9, 3.3, 2.4); scene.add(doorKey);
+
+// light that spills in from beyond as the door opens
+var spill = new THREE.PointLight(0xFFD9A0, 0.0, 24, 2);
+spill.position.set(0, 2.2, -3.4); scene.add(spill);
+var sun = new THREE.DirectionalLight(0xFFE7C2, 0.0);
+sun.position.set(-2.0, 5.0, -12.0); scene.add(sun);
+
+// ---------- scroll ----------
+var target = 0, current = 0;
+function readScroll(){
+  var max = document.body.scrollHeight - window.innerHeight;
+  target = max > 0 ? clamp01(window.scrollY / max) : 0;
+}
+window.addEventListener('scroll', readScroll, {passive:true});
+readScroll();
+
+var elBeat = document.getElementById('beat');
+var elHint = document.getElementById('hint');
+var elRail = document.getElementById('rail');
+var lastBeat = '';
+
+// ---------- hero (task 3) ----------
+// Placeholder copy, handed over in MILESTONE-01. The final wording replaces it.
+var HERO_L1 = "NETORA";
+var HERO_L2 = "אנחנו לא בונים אתרים. אנחנו בונים עולמות.";
+var HERO_GAP   = 4;                                        // beat between the two lines
+var HERO_TOTAL = HERO_L1.length + HERO_GAP + HERO_L2.length;
+var HERO_IN    = 0.92;   // the camera is through the wall by here
+var HERO_DONE  = 0.98;   // typed out, then it simply holds to the end
+var elHero = document.getElementById('hero');
+var elH1 = document.getElementById('h1'), elH2 = document.getElementById('h2');
+var elC1 = document.getElementById('c1'), elC2 = document.getElementById('c2');
+var lastHeroN = -1;
+
+// keeps a trailing space from collapsing, so the caret never jumps backwards
+function heroSlice(str, n){
+  var t = str.slice(0, n);
+  return t.charAt(t.length-1) === ' ' ? t.slice(0,-1) + '\u00A0' : t;
+}
+
+// The number of typed characters is a pure function of the scroll position, so
+// scrolling back untypes it in exactly the same order and it resets to empty.
+// There is no timer and no playing sequence, so it can never stick half written.
+function hero(p){
+  var n = Math.round(seg(p, HERO_IN, HERO_DONE) * HERO_TOTAL);
+  if(n === lastHeroN) return;
+  lastHeroN = n;
+  var n1 = n < HERO_L1.length ? n : HERO_L1.length;
+  var n2 = n - HERO_L1.length - HERO_GAP;
+  if(n2 < 0) n2 = 0; else if(n2 > HERO_L2.length) n2 = HERO_L2.length;
+  elH1.textContent = heroSlice(HERO_L1, n1);
+  elH2.textContent = heroSlice(HERO_L2, n2);
+  elHero.style.opacity = n === 0 ? 0 : 1;
+  var onFirst  = n > 0 && n < HERO_L1.length + HERO_GAP;
+  var onSecond = n >= HERO_L1.length + HERO_GAP && n < HERO_TOTAL;
+  elC1.className = onFirst  ? 'cur on' : 'cur';
+  elC2.className = onSecond ? 'cur on' : 'cur';
+}
+
+function beatText(p){
+  if(p < 0.10) return 'הכספת נעולה';
+  if(p < 0.30) return 'הבריחים נשלפים';
+  if(p < 0.46) return 'המנגנון מסתובב';
+  if(p < 0.60) return 'הדלת מתחילה לזוז';
+  if(p < 0.90) return 'הדלת עוד נפתחת — המצלמה מתקדמת';
+  return 'הסף';
+}
+
+// ---------- travel constants ----------
+// The door swings a full 100 degrees so the body clears the opening completely
+// (reference/ref-05-open.jpg). At 71.6 deg it still stood in the way.
+var DOOR_OPEN = -100 * Math.PI / 180;   // -1.74533 rad
+
+// The camera keeps going straight through the opening, past the wall and the
+// recess, until what lies beyond fills the frame. Forward only.
+var CAM_Z0 = 8.0;
+var CAM_Z1 = -6.0;
+
+// ---------- frame ----------
+function apply(p){
+  // bolts slide INWARD toward the hub, slightly staggered so it reads mechanical
+  for(var i=0;i<bolts.length;i++){
+    var b = bolts[i];
+    var t = easeInOut(seg(p, 0.10 + b.phase*0.045, 0.26 + b.phase*0.045));
+    var d = t * BOLT_TRAVEL;
+    b.rod.position.x    = BOLT_REST - d;
+    b.collar.position.x = BOLT_REST + BOLT_LEN*0.30 - d;
+    b.head.position.x   = BOLT_REST + BOLT_LEN*0.50 - d;
+  }
+
+  // the mechanism turns — ONE arm pitch, thirty degrees, not a spinning helm
+  var mt = easeInOut(seg(p, 0.24, 0.48));
+  mech.rotation.z = -mt * (Math.PI/6);
+  for(var g=0; g<smallGears.length; g++){
+    smallGears[g].group.rotation.z = mt * Math.PI * 2.2 * smallGears[g].dir;
+  }
+
+  // door swings — begins while the mechanism is still turning
+  var d2 = seg(p, 0.38, 0.88);
+  hinge.rotation.y = DOOR_OPEN * easeInOut(d2);
+
+  // camera moves in — begins while the door is still opening
+  var c = seg(p, 0.58, 1.0);
+  camera.position.z = CAM_Z0 + (CAM_Z1 - CAM_Z0) * easeInOut(c);
+  camera.position.y = 1.62;
+  camera.rotation.set(0,0,0);
+
+  // light from beyond
+  var g2 = easeOut(seg(p, 0.40, 0.95));
+  spill.intensity = g2 * 9.0;
+  sun.intensity = g2 * 1.25;
+  glowPlane.material.color.setRGB(0.95*(0.35+0.65*g2), 0.86*(0.35+0.65*g2), 0.70*(0.35+0.65*g2));
+  renderer.toneMappingExposure = 1.02 + g2*0.14;
+
+  // html layer
+  elRail.style.height = (p*100).toFixed(2) + '%';
+  elHint.style.opacity = p > 0.03 ? 0 : 0.75;
+  var bt = beatText(p);
+  if(bt !== lastBeat){ elBeat.textContent = bt; lastBeat = bt; }
+  hero(p);
+}
+
+function tick(){
+  current += (target - current) * 0.085;   // damping, so it glides rather than jumps
+  if(Math.abs(target-current) < 0.00012) current = target;
+  apply(current);
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+window.addEventListener('resize', function(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  readScroll();
+});
+
+})();
+</script>
+</body>
+</html>
