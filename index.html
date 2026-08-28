@@ -572,6 +572,8 @@ readScroll();
 var elBeat = document.getElementById('beat');
 var elHint = document.getElementById('hint');
 var elRail = document.getElementById('rail');
+var elMark = document.querySelector('.mark');
+var MARK_OPACITY = 0.72;                 // the value the stylesheet gives it
 var lastBeat = '';
 
 // ---------- hero (task 3) ----------
@@ -618,7 +620,8 @@ function beatText(p){
   if(p < 0.46) return 'המנגנון מסתובב';
   if(p < 0.60) return 'הדלת מתחילה לזוז';
   if(p < 0.90) return 'הדלת עוד נפתחת — המצלמה מתקדמת';
-  return 'הסף';
+  if(p < HERO_IN) return 'הסף';
+  return '';                             // silent from the first typed character
 }
 
 // ---------- travel constants ----------
@@ -672,6 +675,9 @@ function apply(p){
   // html layer
   elRail.style.height = (p*100).toFixed(2) + '%';
   elHint.style.opacity = p > 0.03 ? 0 : 0.75;
+  // the standing mark fades out before the hero types, so NETORA is never doubled.
+  // Driven from p, not a transition, so scrolling back brings it straight back.
+  elMark.style.opacity = (MARK_OPACITY * (1 - seg(p, 0.88, HERO_IN))).toFixed(3);
   var bt = beatText(p);
   if(bt !== lastBeat){ elBeat.textContent = bt; lastBeat = bt; }
   hero(p);
