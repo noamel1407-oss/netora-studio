@@ -204,7 +204,8 @@ function loadImage(src) {
   }
   const seq = manifest.sequence;
   const set = pickSet(seq.sets);
-  const built = (manifest.builtAt || 'unstamped').slice(5).replace('T', ' ').replace('Z', '');
+  const stamp = manifest.builtAt;
+  const built = stamp ? stamp.slice(5).replace('T', ' ').replace('Z', '') : 'unstamped';
   showBuild(`${set.name} ${set.width}w · ${seq.frames}f/${seq.count}p · ${built}`);
 
   // The three clips are one timeline. `map` turns a scroll position into an
@@ -229,9 +230,12 @@ function loadImage(src) {
     return -1;
   }
 
-  function render() {
+  // `force` is for a resize: reassigning canvas.width clears the backing store,
+  // so the same image has to be painted again even though the index is unchanged.
+  function render(force) {
     const i = nearest(wanted());
-    if (i < 0) return;
+    if (i < 0) { paintBackdrop(); return; }   // nothing loaded yet — field, not black
+    if (!force && i === shown) return;
     draw(images[i]);
     shown = i;
   }
@@ -253,7 +257,7 @@ function loadImage(src) {
     // A rotation changes the box and must be honoured; the address bar does not
     // and must be ignored, or the scrub jumps every time the chrome moves.
     if (!resize()) return;
-    render();
+    render(true);
     showBuild();
     ScrollTrigger.refresh();
   });
@@ -275,7 +279,7 @@ function loadImage(src) {
       try {
         images[i] = await loadImage(frameSrc(set, i + 1));
         const want = wanted();
-        if (Math.abs(i - want) < Math.abs(shown - want)) render();
+        if (shown < 0 || Math.abs(i - want) < Math.abs(shown - want)) render();
       } catch (err) {
         console.warn('frame failed:', err.message);
       }
