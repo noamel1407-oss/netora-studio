@@ -79,10 +79,17 @@ import math, sys
 total, rate, hold_s, src_fps, first = (float(a) for a in sys.argv[1:6])
 count = round(rate * total)
 fps = count / total
-# Last output frame whose NEAREST source frame is still inside clip 01 — not the
-# last one whose timestamp falls inside it. Rounding can cross the join, which
-# would park the hold on the first frame of the forward move.
-hold_at = math.floor((first - 0.5) * fps / src_fps)
+# Which source frame the resampler actually takes for output frame j. Not
+# round(j*src/out): the fps filter maps the MIDPOINT of each output frame
+# window, so it is off by one against the obvious guess for every frame. The
+# two agree at the joins for the current clips, but they stop agreeing as soon
+# as RATE or a clip length changes, and the hold would then land in the wrong
+# clip without anything failing.
+def src_of(j):
+    return math.floor((j + 0.5) * src_fps / fps)
+
+# Last output frame still sampling clip 01 — the settled door the hold sits on.
+hold_at = max(j for j in range(count) if src_of(j) < first)
 print(count, "%.10f" % fps, hold_at, round(hold_s * fps))
 ' "$total" "$RATE" "$HOLD_SECONDS" "$SRC_FPS" "${counts[0]}")
 
@@ -132,7 +139,7 @@ done
 # repeated positions rather than repeated files.
 built=$(date -u +%Y-%m-%dT%H:%MZ)
 python3 -c '
-import sys
+import math, sys
 count, hold_at, hold_n = (int(a) for a in sys.argv[1:4])
 fps = float(sys.argv[4]); built = sys.argv[5]; src_fps = float(sys.argv[6])
 sets_json = sys.argv[7]
@@ -145,7 +152,7 @@ for n in counts:
     bounds.append(run)
 
 def clip_of(j):
-    s = round(j * src_fps / fps)
+    s = math.floor((j + 0.5) * src_fps / fps)   # see src_of() above
     for i, b in enumerate(bounds):
         if s < b:
             return i
