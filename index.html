@@ -102,7 +102,7 @@
     font-size:4.6vw;
     line-height:1.1;
     letter-spacing:.006em;
-    color:#d9b877;                                  /* warm gold */
+    color:#b08d57;                                  /* bronze, after the statues */
   }
   /* The largest of the three — line 1 introduces it, this is the statement.
      Margins are in em so the gaps grow with the type they separate. */
@@ -145,23 +145,6 @@
 
   /* The real text, for assistive tech and for anything reading the page
      without running the reveal. The animated copy above is aria-hidden. */
-  /* TEMPORARY — reveal counter, so the replay can be confirmed on a real
-     device. To remove it: delete this rule, the #reveals element in the body,
-     and the three lines marked TEMPORARY in the hero script. */
-  #reveals{
-    position:fixed;
-    z-index:4;
-    right:calc(.6rem + env(safe-area-inset-right));
-    bottom:calc(.6rem + env(safe-area-inset-bottom));
-    padding:.32rem .55rem;
-    border-radius:.4rem;
-    background:rgba(8,14,26,.6);
-    border:1px solid rgba(200,160,74,.32);
-    color:rgba(226,214,190,.85);
-    font:600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    pointer-events:none;
-  }
-
   .hero-sr{
     position:absolute;
     width:1px; height:1px;
@@ -214,10 +197,6 @@
   </div>
 </div>
 
-<!-- TEMPORARY: reveal counter. Remove this element, the #reveals CSS
-     rule, and the three TEMPORARY lines in the hero script. -->
-<div id="reveals">reveals: 0</div>
-
 <script>
 /* The hero text is scrubbed, not played.
 
@@ -234,8 +213,7 @@
 (function () {
   'use strict';
 
-  var root  = document.getElementById('hero');
-  var badge = document.getElementById('reveals');            // TEMPORARY
+  var root = document.getElementById('hero');
   if (!root) return;
 
   var words = [].slice.call(root.querySelectorAll('.w'));
@@ -250,10 +228,7 @@
   var RISE   = 0.42;                              // em, matches the at-rest state
   var BLUR   = 9;                                 // px, likewise
 
-  var last  = [];      // last value written per word, to skip idle writes
-  var full  = false;   // the reveal is currently complete
-  var fires = 0;       // TEMPORARY
-  var shownPct = -1;   // TEMPORARY
+  var last = [];       // last value written per word, to skip idle writes
 
   function ease(t) {                              // easeOutCubic
     var v = 1 - t;
@@ -281,19 +256,7 @@
     // scrub finishing, and anything above that belongs to the reveal.
     at: function (p) {
       var u = (p - 1) / REVEAL;
-      u = u < 0 ? 0 : (u > 1 ? 1 : u);
-      draw(u);
-
-      if (u >= 0.999) {                                        // TEMPORARY
-        if (!full) { full = true; fires++; shownPct = -1; }     // TEMPORARY
-      } else { full = false; }                                  // TEMPORARY
-      if (badge) {                                              // TEMPORARY
-        var pct = Math.round(u * 100);                          // TEMPORARY
-        if (pct !== shownPct) {                                 // TEMPORARY
-          shownPct = pct;                                       // TEMPORARY
-          badge.textContent = 'reveals: ' + fires + '  ·  ' + pct + '%';
-        }                                                       // TEMPORARY
-      }                                                         // TEMPORARY
+      draw(u < 0 ? 0 : (u > 1 ? 1 : u));
     }
   };
 })();
