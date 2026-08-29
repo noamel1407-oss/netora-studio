@@ -8,7 +8,7 @@
 <link rel="preload" as="image" href="frames/frame-001.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Heebo:wght@300;400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Heebo:wght@500&display=swap">
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; }
 
@@ -64,14 +64,16 @@
     position:fixed;
     top:0; left:0;
     z-index:2;
-    max-width:min(34rem, 90vw);
+    /* Hard ceiling, so the right half stays free for the portfolio
+       transition. Relaxed on phones — see the narrow-screen block below. */
+    max-width:49vw;
     padding:
-      calc(clamp(3.2rem, 11vh, 8rem) + env(safe-area-inset-top))
-      1rem 0
-      calc(clamp(1.4rem, 6vw, 4.5rem) + env(safe-area-inset-left));
+      calc(clamp(2.4rem, 9vh, 7rem) + env(safe-area-inset-top))
+      0 0
+      calc(clamp(0.9rem, 4vw, 3.5rem) + env(safe-area-inset-left));
     opacity:0;
     pointer-events:none;
-    text-shadow:0 2px 26px rgba(0,0,0,.78), 0 1px 3px rgba(0,0,0,.55);
+    text-shadow:0 2px 40px rgba(0,0,0,.8), 0 1px 4px rgba(0,0,0,.6);
     -webkit-font-smoothing:antialiased;
     /* leaving the hold: out of the way before the vault is back on screen */
     transition:opacity .25s ease;
@@ -81,10 +83,6 @@
     transition:opacity .6s ease;
   }
 
-  @media (min-width:820px){
-    #hero{ max-width:min(46rem, 50vw); }
-  }
-
   /* Each line carries an invisible copy of its finished text, which is what
      actually sizes the box; the typed copy is laid over it. Without this the
      block would reflow on the character that tips a line into wrapping. */
@@ -92,14 +90,25 @@
   .hero-line .ghost{ visibility:hidden; }
   .hero-line .type{ position:absolute; top:0; left:0; right:0; }
 
+  /* Type sizes are solved, not guessed. Measured in the shipped faces, the
+     rendered width of a string is a fixed multiple of its font-size:
+
+       "Welcome to Netora"                 7.68x  (Cormorant Garamond 700)
+       "Here we turn dreams into reality"  12.87x (Cormorant Garamond 600)
+
+     Line 1 must never wrap, so its width has to fit the budget the 49vw
+     ceiling leaves after the left padding. Solving
+
+         7.68 * size  <=  49vw - 4vw      gives  size <= 5.86vw
+
+     and 5.7vw is that with ~4% held back for rounding and for the wider
+     fallback serif on the frames before the webfont resolves. */
   .hero-l1{
     font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-    font-weight:600;
-    /* sized so "Welcome to Netora" stays on one line at every width —
-       the box is shrink-to-fit, so a wrap here would also reflow the block */
-    font-size:clamp(1.95rem, 5.2vw, 4.2rem);
-    line-height:1.04;
-    letter-spacing:.004em;
+    font-weight:700;
+    font-size:clamp(1.05rem, 5.7vw, 8rem);
+    line-height:1.02;
+    letter-spacing:-.005em;                         /* tighter at display size */
     color:#d9b877;                                  /* warm gold */
   }
   .hero-l1 .accent{
@@ -108,12 +117,12 @@
   }
 
   .hero-l2{
-    margin-top:clamp(.7rem, 2.2vh, 1.35rem);
+    margin-top:.5em;                                /* scales with the type */
     font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-    font-weight:500;
-    font-size:clamp(1.02rem, 3.1vw, 1.7rem);
-    line-height:1.34;
-    letter-spacing:.012em;
+    font-weight:600;
+    font-size:clamp(.82rem, 3.05vw, 4.25rem);
+    line-height:1.24;
+    letter-spacing:.004em;
     color:#dde1e6;
   }
 
@@ -122,17 +131,35 @@
   .hero-arrow{
     width:fit-content;
     max-width:100%;
-    margin-top:clamp(1.1rem, 3.4vh, 2rem);
+    margin-top:1.6em;
     font-family:'Heebo', 'Arial Hebrew', Arial, sans-serif;
-    font-weight:300;
-    font-size:clamp(.82rem, 2.4vw, 1.02rem);
-    line-height:1.5;
+    font-weight:500;
+    font-size:clamp(1.05rem, 1.7vw, 2.4rem);
+    line-height:1.45;
     letter-spacing:.01em;
     color:rgba(200,160,74,.72);                     /* muted #c8a04a */
     opacity:0;
     transition:opacity .9s ease;
   }
   .hero-arrow.in{ opacity:1; }
+
+  /* Phones get the width back. Half of a 390px screen is 195px, which
+     caps a 17-character headline at ~22px — smaller than it is now, and
+     too small to lead with; 195px is also too narrow to host the
+     portfolio view the reservation exists for. So below the tablet
+     breakpoint the block runs to 88vw and the sizes are re-solved against
+     that budget: 10.4vw for line 1 against (88vw - 4vw) / 7.68.
+
+     The caps are chosen so the two regimes meet: at 767px this rule gives
+     44 / 24 / 16.8px and at 768px the rule above gives 43.8 / 23.4 / 16.8px,
+     so nothing jumps across the breakpoint. Landscape phones are wide
+     enough to fall under the 49vw rule, which is what we want. */
+  @media (max-width:767.98px){
+    #hero{ max-width:88vw; }
+    .hero-l1{ font-size:clamp(1.5rem, 10.4vw, 2.75rem); }
+    .hero-l2{ font-size:clamp(.85rem, 5.6vw, 1.5rem); }
+    .hero-arrow{ font-size:clamp(.85rem, 3.4vw, 1.05rem); }
+  }
 
   .hero-sr{
     position:absolute;
@@ -188,13 +215,14 @@
 
   var SETTLE = 300;   // beat between arriving and the first character
   var SPEED1 = 100;   // ms/char on line 1 — slow, this is the dramatic beat
-  var GAP    = 500;   // pause once line 1 lands
-  var SPEED2 = 42;    // ms/char on line 2 — noticeably quicker
+  var SPEED2 = 42;    // ms/char on line 2 — quicker, and following straight
+                      // on: there is no pause between the lines, so the two
+                      // read as one accelerating run rather than two events
   var BEAT   = 260;   // pause before the arrow starts to fade up
 
   // Timeline marks, in ms from the moment the hold is reached.
   var T1  = SETTLE + (GOLD.length + ACCENT.length) * SPEED1;   // line 1 done
-  var T2  = T1 + GAP + LINE2.length * SPEED2;                  // line 2 done
+  var T2  = T1 + LINE2.length * SPEED2;                        // line 2 done
   var END = T2 + BEAT;                                         // arrow fades
 
   var root   = document.getElementById('hero');
@@ -237,7 +265,7 @@
     var n1 = Math.floor((at - SETTLE) / SPEED1);
     cut(gold, GOLD, n1);
     cut(accent, ACCENT, n1 - GOLD.length);
-    cut(line2, LINE2, Math.floor((at - (T1 + GAP)) / SPEED2));
+    cut(line2, LINE2, Math.floor((at - T1) / SPEED2));
     if (at >= T2 + BEAT) arrow.classList.add('in');
   }
 
