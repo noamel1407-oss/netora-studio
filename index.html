@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#000000">
 <title>Netora</title>
 <link rel="preload" as="image" href="frames/frame-001.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Heebo:wght@300;400&display=swap">
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; }
 
@@ -50,8 +53,101 @@
   }
   #load.done{ opacity:0; }
 
+  /* ---------- hero overlay ---------- */
+
+  /* Rides on top of the rotunda while it holds still at the bottom of the
+     track. Anchored to the viewport rather than to the picture: blit()
+     covers, so on a wide screen only the middle band of the 9:16 frame is
+     ever on show and "upper-left of the image" would drift off it. The
+     right half stays empty — that space is spoken for. */
+  #hero{
+    position:fixed;
+    top:0; left:0;
+    z-index:2;
+    max-width:min(34rem, 90vw);
+    padding:
+      calc(clamp(3.2rem, 11vh, 8rem) + env(safe-area-inset-top))
+      1rem 0
+      calc(clamp(1.4rem, 6vw, 4.5rem) + env(safe-area-inset-left));
+    opacity:0;
+    pointer-events:none;
+    text-shadow:0 2px 26px rgba(0,0,0,.78), 0 1px 3px rgba(0,0,0,.55);
+    -webkit-font-smoothing:antialiased;
+    /* leaving the hold: out of the way before the vault is back on screen */
+    transition:opacity .25s ease;
+  }
+  #hero.on{
+    opacity:1;
+    transition:opacity .6s ease;
+  }
+
+  @media (min-width:820px){
+    #hero{ max-width:min(46rem, 50vw); }
+  }
+
+  /* Each line carries an invisible copy of its finished text, which is what
+     actually sizes the box; the typed copy is laid over it. Without this the
+     block would reflow on the character that tips a line into wrapping. */
+  .hero-line{ position:relative; }
+  .hero-line .ghost{ visibility:hidden; }
+  .hero-line .type{ position:absolute; top:0; left:0; right:0; }
+
+  .hero-l1{
+    font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    font-weight:600;
+    /* sized so "Welcome to Netora" stays on one line at every width —
+       the box is shrink-to-fit, so a wrap here would also reflow the block */
+    font-size:clamp(1.95rem, 5.2vw, 4.2rem);
+    line-height:1.04;
+    letter-spacing:.004em;
+    color:#d9b877;                                  /* warm gold */
+  }
+  .hero-l1 .accent{
+    color:#79bdff;                                  /* the dome's blue */
+    text-shadow:0 0 30px rgba(112,180,255,.34), 0 2px 26px rgba(0,0,0,.78);
+  }
+
+  .hero-l2{
+    margin-top:clamp(.7rem, 2.2vh, 1.35rem);
+    font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    font-weight:500;
+    font-size:clamp(1.02rem, 3.1vw, 1.7rem);
+    line-height:1.34;
+    letter-spacing:.012em;
+    color:#dde1e6;
+  }
+
+  /* fit-content so the RTL line still starts flush with the English ones:
+     a full-width rtl block would push its text to the far right. */
+  .hero-arrow{
+    width:fit-content;
+    max-width:100%;
+    margin-top:clamp(1.1rem, 3.4vh, 2rem);
+    font-family:'Heebo', 'Arial Hebrew', Arial, sans-serif;
+    font-weight:300;
+    font-size:clamp(.82rem, 2.4vw, 1.02rem);
+    line-height:1.5;
+    letter-spacing:.01em;
+    color:rgba(200,160,74,.72);                     /* muted #c8a04a */
+    opacity:0;
+    transition:opacity .9s ease;
+  }
+  .hero-arrow.in{ opacity:1; }
+
+  .hero-sr{
+    position:absolute;
+    width:1px; height:1px;
+    margin:-1px; padding:0;
+    overflow:hidden;
+    clip:rect(0 0 0 0);
+    clip-path:inset(50%);
+    white-space:nowrap;
+    border:0;
+  }
+
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
+    #hero, #hero.on, .hero-arrow{ transition:none; }
   }
 </style>
 </head>
@@ -59,6 +155,166 @@
 
 <div id="stage"><canvas id="frame"></canvas></div>
 <div id="load"></div>
+
+<div id="hero">
+  <h1 class="hero-sr">Welcome to Netora</h1>
+  <p class="hero-sr">Here we turn dreams into reality</p>
+  <p class="hero-sr" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</p>
+
+  <div aria-hidden="true">
+    <div class="hero-line hero-l1">
+      <span class="ghost">Welcome to <span class="accent">Netora</span></span>
+      <span class="type"><span id="hero-gold"></span><span class="accent" id="hero-accent"></span></span>
+    </div>
+    <div class="hero-line hero-l2">
+      <span class="ghost">Here we turn dreams into reality</span>
+      <span class="type" id="hero-l2"></span>
+    </div>
+    <div class="hero-arrow" id="hero-arrow" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</div>
+  </div>
+</div>
+
+<script>
+/* The hero overlay types itself out once the rotunda has settled.
+   It owns no scroll handling of its own: the scrubber calls enter()/exit()
+   off the very same clamped progress value it uses to choose a frame, so
+   the reveal cannot drift out of step with the picture underneath it. */
+(function () {
+  'use strict';
+
+  var GOLD   = 'Welcome to ';
+  var ACCENT = 'Netora';
+  var LINE2  = 'Here we turn dreams into reality';
+
+  var SETTLE = 300;   // beat between arriving and the first character
+  var SPEED1 = 100;   // ms/char on line 1 — slow, this is the dramatic beat
+  var GAP    = 500;   // pause once line 1 lands
+  var SPEED2 = 42;    // ms/char on line 2 — noticeably quicker
+  var BEAT   = 260;   // pause before the arrow starts to fade up
+
+  // Timeline marks, in ms from the moment the hold is reached.
+  var T1  = SETTLE + (GOLD.length + ACCENT.length) * SPEED1;   // line 1 done
+  var T2  = T1 + GAP + LINE2.length * SPEED2;                  // line 2 done
+  var END = T2 + BEAT;                                         // arrow fades
+
+  var root   = document.getElementById('hero');
+  var gold   = document.getElementById('hero-gold');
+  var accent = document.getElementById('hero-accent');
+  var line2  = document.getElementById('hero-l2');
+  var arrow  = document.getElementById('hero-arrow');
+  if (!root || !gold || !accent || !line2 || !arrow) return;
+
+  var reduce = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  var now = (window.performance && window.performance.now)
+    ? function () { return window.performance.now(); }
+    : function () { return Date.now(); };
+
+  var shown   = false;  // block currently faded in
+  var running = false;  // clock advancing
+  var done    = false;  // fully typed — this never types a second time
+  var fonts   = false;  // webfonts settled, so nothing reflows mid-type
+  var at      = 0;      // position along the timeline, ms
+  var mark    = 0;      // clock reading the current run started from
+  var raf     = 0;
+
+  function advance() {
+    var t = now();
+    var dt = t - mark;
+    // A backgrounded tab stops rAF while the clock keeps going; without
+    // this cap the reveal would be over before it was ever on screen.
+    at += dt > 250 ? 250 : dt;
+    mark = t;
+  }
+
+  function cut(el, text, n) {
+    var next = n <= 0 ? '' : n >= text.length ? text : text.slice(0, n);
+    if (el.textContent !== next) el.textContent = next;
+  }
+
+  function render() {
+    var n1 = Math.floor((at - SETTLE) / SPEED1);
+    cut(gold, GOLD, n1);
+    cut(accent, ACCENT, n1 - GOLD.length);
+    cut(line2, LINE2, Math.floor((at - (T1 + GAP)) / SPEED2));
+    if (at >= T2 + BEAT) arrow.classList.add('in');
+  }
+
+  function stop() {
+    running = false;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  }
+
+  function finish() {
+    stop();
+    done = true;
+    at = END;
+    render();
+  }
+
+  function tick() {
+    raf = 0;
+    if (!running) return;
+    advance();
+    if (at >= END) { finish(); return; }
+    render();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function resume() {
+    if (done || running || !fonts) return;
+    if (reduce) { finish(); return; }   // no typing, just the finished state
+    running = true;
+    mark = now();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    if (!running) return;
+    advance();
+    stop();
+  }
+
+  function ready() {
+    if (fonts) return;
+    fonts = true;
+    if (shown) resume();
+  }
+
+  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+    var bail = setTimeout(ready, 1500);
+    document.fonts.ready.then(function () {
+      clearTimeout(bail);
+      ready();
+    }, ready);
+  } else {
+    fonts = true;
+  }
+
+  /* The scrubber drives these. Both are called on every painted scroll
+     event, so both are guarded down to a no-op once settled. */
+  window.NetoraHero = {
+    // Settled on the last frame: fade in, and start (or pick back up) the
+    // type-out. Once done it only ever fades — the beat happens once.
+    enter: function () {
+      if (!shown) {
+        shown = true;
+        root.classList.add('on');
+      }
+      resume();
+    },
+    // Left the hold. Out of the way fast, and hold the clock where it is
+    // so a viewer who bails mid-reveal is not robbed of the rest of it.
+    exit: function () {
+      if (!shown) return;
+      shown = false;
+      root.classList.remove('on');
+      pause();
+    }
+  };
+})();
+</script>
 
 <script>
 (function () {
@@ -87,6 +343,8 @@
   var canvas = document.getElementById('frame');
   var bar    = document.getElementById('load');
   var ctx    = canvas.getContext('2d', { alpha: false });
+
+  var hero    = window.NetoraHero;
 
   var images  = new Array(COUNT);
   var loaded  = 0;
@@ -165,6 +423,12 @@
       if (p > 1) p = 1;                          // the hold at the bottom
       idx = Math.round(p * (COUNT - 1));
     }
+
+    // The hero overlay rides the same clamp: p === 1 is the scrub finished
+    // and the rotunda holding still. Above the early-out, which returns on
+    // every scroll event once the held frame is already painted.
+    if (hero) hero[ready && p >= 1 ? 'enter' : 'exit']();
+
     if (idx === drawn) return;
 
     var img = images[idx];
