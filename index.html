@@ -2,8 +2,226 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 <title>Netora</title>
+<link rel="preload" as="image" href="frames/frame-001.jpg">
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html{ background:#000; }
+
+  body{
+    background:#000;
+    /* the scroll track: 400vh of travel drives the 48 frames */
+    height:400vh;
+    overscroll-behavior-y:none;
+  }
+
+  #stage{
+    position:fixed;
+    inset:0;
+    background:#000;
+    overflow:hidden;
+  }
+
+  #frame{
+    display:block;
+    width:100%;
+    height:100%;
+  }
+
+  /* hairline preload indicator — no text, fades out once every frame is in */
+  #load{
+    position:fixed;
+    top:0; left:0;
+    height:2px;
+    width:0;
+    background:#c8a04a;
+    pointer-events:none;
+    transition:width .18s linear, opacity .5s ease .2s;
+    will-change:width;
+  }
+  #load.done{ opacity:0; }
+
+  @media (prefers-reduced-motion:reduce){
+    #load{ transition:none; }
+  }
+</style>
 </head>
 <body>
+
+<div id="stage"><canvas id="frame"></canvas></div>
+<div id="load"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var COUNT = 48;
+
+  var stage  = document.getElementById('stage');
+  var canvas = document.getElementById('frame');
+  var bar    = document.getElementById('load');
+  var ctx    = canvas.getContext('2d', { alpha: false });
+
+  var images  = new Array(COUNT);
+  var loaded  = 0;
+  var ready   = false;
+  var drawn   = -1;   // frame index currently painted
+  var queued  = false;
+
+  function srcFor(i) {
+    return 'frames/frame-' + String(i + 1).padStart(3, '0') + '.jpg';
+  }
+
+  /* ---------- painting ---------- */
+
+  // Size the backing store to the viewport, but never ask for more pixels
+  // than the source frames actually contain — the clip is 720x1280, so
+  // going beyond that just burns memory for no visible detail.
+  function resize() {
+    var cssW = stage.clientWidth;
+    var cssH = stage.clientHeight;
+    if (!cssW || !cssH) return;
+
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.round(cssW * dpr);
+    var h = Math.round(cssH * dpr);
+
+    var cap = 1280 * 1280;                       // pixel budget
+    var area = w * h;
+    if (area > cap) {
+      var k = Math.sqrt(cap / area);
+      w = Math.round(w * k);
+      h = Math.round(h * k);
+    }
+
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      drawn = -1;                                // force a repaint
+    }
+    paint();
+  }
+
+  // cover: fill the canvas, preserve aspect, centre the overflow
+  function blit(img) {
+    var cw = canvas.width;
+    var ch = canvas.height;
+    var iw = img.naturalWidth;
+    var ih = img.naturalHeight;
+    if (!iw || !ih) return;
+
+    var s = Math.max(cw / iw, ch / ih);
+    var w = iw * s;
+    var h = ih * s;
+    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+  }
+
+  function progress() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max <= 0) return 0;
+    var p = window.scrollY / max;
+    // iOS rubber-banding can overshoot in both directions
+    return p < 0 ? 0 : p > 1 ? 1 : p;
+  }
+
+  function paint() {
+    // Until every frame is decoded, hold on the closed door rather than
+    // showing gaps — this is what keeps scrubbing flicker-free later.
+    var idx = ready ? Math.round(progress() * (COUNT - 1)) : 0;
+    if (idx === drawn) return;
+
+    var img = images[idx];
+    if (!img || !img.complete || !img.naturalWidth) return;
+
+    drawn = idx;
+    blit(img);
+  }
+
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () {
+      queued = false;
+      paint();
+    });
+  }
+
+  /* ---------- preload ---------- */
+
+  function load(i) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.decoding = 'async';
+
+      function settle() {
+        loaded++;
+        bar.style.width = (loaded / COUNT * 100) + '%';
+        resolve();
+      }
+
+      img.onload = function () {
+        // Decode up front so the first paint of each frame is instant.
+        // Keep plain <img> rather than ImageBitmap: the browser may evict
+        // a decoded frame under memory pressure and silently re-decode
+        // from cache, instead of the tab being killed outright.
+        if (img.decode) {
+          img.decode().then(function () {
+            images[i] = img;
+            settle();
+          }, function () {
+            images[i] = img;
+            settle();
+          });
+        } else {
+          images[i] = img;
+          settle();
+        }
+      };
+
+      img.onerror = function () {
+        images[i] = null;
+        settle();
+      };
+
+      img.src = srcFor(i);
+    });
+  }
+
+  function start() {
+    resize();
+
+    // Frame 1 first, so the closed door is on screen almost immediately
+    // instead of a black hold while the rest streams in.
+    load(0).then(function () {
+      paint();
+
+      var rest = [];
+      for (var i = 1; i < COUNT; i++) rest.push(load(i));
+
+      return Promise.all(rest);
+    }).then(function () {
+      ready = true;
+      bar.classList.add('done');
+      drawn = -1;
+      paint();
+    });
+  }
+
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  // A bfcache restore can bring back a scroll position with a stale canvas.
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) { drawn = -1; paint(); }
+  });
+
+  start();
+})();
+</script>
+
 </body>
 </html>
