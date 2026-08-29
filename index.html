@@ -12,9 +12,15 @@
   html{ background:#000; }
 
   body{
+    /* The scroll track, in viewport heights:
+         100  the viewport itself (never scrolls past)
+         750  scrub travel — drives all 119 frames at the vault's original
+              rate of ~6.36vh per frame, so the two shots read as one move
+         100  hero hold — the last entrance frame sits still down here
+       ------
+         950                                                              */
     background:#000;
-    /* the scroll track: 400vh of travel drives the 48 frames */
-    height:400vh;
+    height:950vh;
     overscroll-behavior-y:none;
   }
 
@@ -58,7 +64,24 @@
 (function () {
   'use strict';
 
-  var COUNT = 48;
+  // One timeline across two clips: the vault door opens, then the camera
+  // carries through the doorway into the rotunda.
+  //
+  //   timeline 0..47    vault-open    frames/frame-001..048
+  //   timeline 48..118  entrance      frames-entrance/frame-002..072
+  //
+  // The entrance clip's own frame-001 is the same picture as vault
+  // frame-048 — it is the seam the two shots were cut on. It stays in the
+  // folder so that sequence stands alone, but it is skipped here: spending
+  // a scroll step repainting an identical frame would read as a stall at
+  // the exact moment the camera should start moving.
+  var VAULT = 48;
+  var COUNT = 119;
+
+  // Fraction of the scroll track that drives frames. Past it the last
+  // frame simply holds, giving the hero rotunda a full viewport of stillness
+  // at the bottom. 750 of the 850vh of travel scrubs; the rest holds.
+  var SCRUB = 750 / 850;
 
   var stage  = document.getElementById('stage');
   var canvas = document.getElementById('frame');
@@ -71,14 +94,20 @@
   var drawn   = -1;   // frame index currently painted
   var queued  = false;
 
+  function pad(n) {
+    return String(n).padStart(3, '0');
+  }
+
   function srcFor(i) {
-    return 'frames/frame-' + String(i + 1).padStart(3, '0') + '.jpg';
+    return i < VAULT
+      ? 'frames/frame-' + pad(i + 1) + '.jpg'
+      : 'frames-entrance/frame-' + pad(i - VAULT + 2) + '.jpg';
   }
 
   /* ---------- painting ---------- */
 
   // Size the backing store to the viewport, but never ask for more pixels
-  // than the source frames actually contain — the clip is 720x1280, so
+  // than the source frames actually contain — both clips are 720x1280, so
   // going beyond that just burns memory for no visible detail.
   function resize() {
     var cssW = stage.clientWidth;
@@ -130,7 +159,12 @@
   function paint() {
     // Until every frame is decoded, hold on the closed door rather than
     // showing gaps — this is what keeps scrubbing flicker-free later.
-    var idx = ready ? Math.round(progress() * (COUNT - 1)) : 0;
+    var idx = 0;
+    if (ready) {
+      var p = progress() / SCRUB;
+      if (p > 1) p = 1;                          // the hold at the bottom
+      idx = Math.round(p * (COUNT - 1));
+    }
     if (idx === drawn) return;
 
     var img = images[idx];
@@ -198,6 +232,8 @@
     load(0).then(function () {
       paint();
 
+      // Requested in timeline order, so the frames the viewer reaches
+      // first are also the ones the browser fetches first.
       var rest = [];
       for (var i = 1; i < COUNT; i++) rest.push(load(i));
 
