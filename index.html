@@ -8,7 +8,7 @@
 <link rel="preload" as="image" href="frames/frame-001.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Heebo:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Heebo:wght@500&display=swap">
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; }
 
@@ -44,6 +44,7 @@
   #load{
     position:fixed;
     top:0; left:0;
+    z-index:3;                                   /* above the tint below */
     height:2px;
     width:0;
     background:#c8a04a;
@@ -53,20 +54,39 @@
   }
   #load.done{ opacity:0; }
 
+  /* ---------- world tint ---------- */
+
+  /* The rotunda renders bright; this sinks it to deep navy so the type sits
+     on something quieter. It is its own fixed layer between the canvas
+     (z-index auto) and the text (z-index 2), so it darkens the picture and
+     nothing else — the frames are untouched on disk and the canvas is
+     neither filtered nor redrawn, which also keeps it off the scrub's
+     per-frame work. */
+  #tint{
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+    background:
+      radial-gradient(125% 88% at 50% 42%, rgba(2,7,22,.30) 0%, rgba(1,4,14,.66) 100%),
+      rgb(4,10,28);
+    opacity:.78;
+  }
+
   /* ---------- hero overlay ---------- */
 
   /* Rides on top of the rotunda while it holds still at the bottom of the
      track. Anchored to the viewport rather than to the picture: blit()
      covers, so on a wide screen only the middle band of the 9:16 frame is
-     ever on show and "upper-left of the image" would drift off it. The
-     right half stays empty — that space is spoken for. */
+     ever on show and "upper-left of the image" would sit off-screen. */
   #hero{
     position:fixed;
     top:0; left:0;
     z-index:2;
-    /* Hard ceiling, so the right half stays free for the portfolio
-       transition. Relaxed on phones — see the narrow-screen block below. */
-    max-width:49vw;
+    /* Half the viewport, less a margin — the block stays clear of the
+       centre line at every width, and on a phone this is also what makes
+       line 2 break in two. */
+    max-width:48vw;
     padding:
       calc(clamp(2.4rem, 9vh, 7rem) + env(safe-area-inset-top))
       0 0
@@ -75,40 +95,39 @@
     pointer-events:none;
     text-shadow:0 2px 40px rgba(0,0,0,.8), 0 1px 4px rgba(0,0,0,.6);
     -webkit-font-smoothing:antialiased;
-    /* leaving the hold: out of the way before the vault is back on screen */
-    transition:opacity .25s ease;
+    transition:opacity .2s ease;
   }
-  #hero.on{
+  #hero.on{ opacity:1; transition:opacity .15s ease; }
+
+  /* Every word is always in the document and always occupies its own space;
+     only opacity, transform and blur change, and none of those affect
+     layout. So the block never reflows mid-reveal and there is nothing to
+     reserve — the invisible sizing copy the typed version needed is gone. */
+  .w{
+    display:inline-block;
+    opacity:0;
+    transform:translateY(.42em);
+    filter:blur(9px);
+    /* leaving: everything drops back together, quickly, no stagger */
+    transition:opacity .26s ease, transform .26s ease, filter .26s ease;
+  }
+  #hero.on .w{
     opacity:1;
-    transition:opacity .6s ease;
+    transform:none;
+    filter:blur(0);
+    /* arriving: each word a beat behind the one before it */
+    transition:opacity .52s ease-out,
+               transform .52s cubic-bezier(.22,.68,.24,1),
+               filter .52s ease-out;
+    transition-delay:calc(var(--i) * 62ms);
   }
 
-  /* Each line carries an invisible copy of its finished text, which is what
-     actually sizes the box; the typed copy is laid over it. Without this the
-     block would reflow on the character that tips a line into wrapping. */
-  .hero-line{ position:relative; }
-  .hero-line .ghost{ visibility:hidden; }
-  .hero-line .type{ position:absolute; top:0; left:0; right:0; }
-
-  /* Type sizes are solved, not guessed. Measured in the shipped faces, the
-     rendered width of a string is a fixed multiple of its font-size:
-
-       "Welcome to Netora"                 7.68x  (Cormorant Garamond 700)
-       "Here we turn dreams into reality"  12.87x (Cormorant Garamond 600)
-
-     Line 1 must never wrap, so its width has to fit the budget the 49vw
-     ceiling leaves after the left padding. Solving
-
-         7.68 * size  <=  49vw - 4vw      gives  size <= 5.86vw
-
-     and 5.7vw is that with ~4% held back for rounding and for the wider
-     fallback serif on the frames before the webfont resolves. */
   .hero-l1{
     font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-    font-weight:700;
-    font-size:clamp(1.05rem, 5.7vw, 8rem);
-    line-height:1.02;
-    letter-spacing:-.005em;                         /* tighter at display size */
+    font-weight:500;
+    font-size:clamp(1.05rem, 2.3vw, 2.2rem);
+    line-height:1.2;
+    letter-spacing:.006em;
     color:#d9b877;                                  /* warm gold */
   }
   .hero-l1 .accent{
@@ -116,12 +135,13 @@
     text-shadow:0 0 30px rgba(112,180,255,.34), 0 2px 26px rgba(0,0,0,.78);
   }
 
+  /* The largest of the three — line 1 introduces it, this is the statement. */
   .hero-l2{
-    margin-top:.5em;                                /* scales with the type */
+    margin-top:.34em;
     font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
     font-weight:600;
-    font-size:clamp(.82rem, 3.05vw, 4.25rem);
-    line-height:1.24;
+    font-size:clamp(1.3rem, 2.8vw, 2.7rem);
+    line-height:1.26;
     letter-spacing:.004em;
     color:#dde1e6;
   }
@@ -131,36 +151,27 @@
   .hero-arrow{
     width:fit-content;
     max-width:100%;
-    margin-top:1.6em;
+    margin-top:1.5em;
     font-family:'Heebo', 'Arial Hebrew', Arial, sans-serif;
     font-weight:500;
-    font-size:clamp(1.05rem, 1.7vw, 2.4rem);
+    font-size:clamp(.95rem, 1.1vw, 1.35rem);
     line-height:1.45;
     letter-spacing:.01em;
     color:rgba(200,160,74,.72);                     /* muted #c8a04a */
-    opacity:0;
-    transition:opacity .9s ease;
   }
-  .hero-arrow.in{ opacity:1; }
 
-  /* Phones get the width back. Half of a 390px screen is 195px, which
-     caps a 17-character headline at ~22px — smaller than it is now, and
-     too small to lead with; 195px is also too narrow to host the
-     portfolio view the reservation exists for. So below the tablet
-     breakpoint the block runs to 88vw and the sizes are re-solved against
-     that budget: 10.4vw for line 1 against (88vw - 4vw) / 7.68.
-
-     The caps are chosen so the two regimes meet: at 767px this rule gives
-     44 / 24 / 16.8px and at 768px the rule above gives 43.8 / 23.4 / 16.8px,
-     so nothing jumps across the breakpoint. Landscape phones are wide
-     enough to fall under the 49vw rule, which is what we want. */
+  /* Phones. Sized so line 2 breaks of its own accord after "dreams", and so
+     the three sizes land within a pixel of the desktop rule at the
+     breakpoint — 18.4 / 22.4 / 15.2px here against 17.7 / 21.5 / 15.2px
+     there — leaving nothing to jump across it. */
   @media (max-width:767.98px){
-    #hero{ max-width:88vw; }
-    .hero-l1{ font-size:clamp(1.5rem, 10.4vw, 2.75rem); }
-    .hero-l2{ font-size:clamp(.85rem, 5.6vw, 1.5rem); }
-    .hero-arrow{ font-size:clamp(.85rem, 3.4vw, 1.05rem); }
+    .hero-l1{ font-size:clamp(.95rem, 4.3vw, 1.15rem); }
+    .hero-l2{ font-size:clamp(1.1rem, 5.4vw, 1.4rem); }
+    .hero-arrow{ font-size:clamp(.78rem, 3.2vw, .95rem); }
   }
 
+  /* The real text, for assistive tech and for anything reading the page
+     without running the reveal. The animated copy above is aria-hidden. */
   .hero-sr{
     position:absolute;
     width:1px; height:1px;
@@ -174,13 +185,22 @@
 
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
-    #hero, #hero.on, .hero-arrow{ transition:none; }
+    #hero, #hero.on{ transition:none; }
+    /* land on the finished state, with no travel and nothing to blur */
+    .w, #hero.on .w{
+      transition:none;
+      transition-delay:0s;
+      opacity:1;
+      transform:none;
+      filter:none;
+    }
   }
 </style>
 </head>
 <body>
 
 <div id="stage"><canvas id="frame"></canvas></div>
+<div id="tint"></div>
 <div id="load"></div>
 
 <div id="hero">
@@ -188,157 +208,82 @@
   <p class="hero-sr">Here we turn dreams into reality</p>
   <p class="hero-sr" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</p>
 
+  <!-- One span per word: the reveal moves each of these, so the order
+       here is the order they arrive in. --i is its place in the queue. -->
   <div aria-hidden="true">
-    <div class="hero-line hero-l1">
-      <span class="ghost">Welcome to <span class="accent">Netora</span></span>
-      <span class="type"><span id="hero-gold"></span><span class="accent" id="hero-accent"></span></span>
+    <div class="hero-l1">
+      <span class="w" style="--i:0">Welcome</span>
+      <span class="w" style="--i:1">to</span>
+      <span class="w accent" style="--i:2">Netora</span>
     </div>
-    <div class="hero-line hero-l2">
-      <span class="ghost">Here we turn dreams into reality</span>
-      <span class="type" id="hero-l2"></span>
+    <div class="hero-l2">
+      <span class="w" style="--i:3">Here</span>
+      <span class="w" style="--i:4">we</span>
+      <span class="w" style="--i:5">turn</span>
+      <span class="w" style="--i:6">dreams</span>
+      <span class="w" style="--i:7">into</span>
+      <span class="w" style="--i:8">reality</span>
     </div>
-    <div class="hero-arrow" id="hero-arrow" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</div>
+    <div class="hero-arrow" lang="he" dir="rtl"><span class="w" style="--i:9">↓ לצפייה בעבודות שלנו</span></div>
   </div>
 </div>
 
 <script>
-/* The hero overlay types itself out once the rotunda has settled.
-   It owns no scroll handling of its own: the scrubber calls enter()/exit()
-   off the very same clamped progress value it uses to choose a frame, so
-   the reveal cannot drift out of step with the picture underneath it. */
+/* The hero overlay reveals itself once the rotunda has settled: each word
+   rises into place out of a blur, one a beat behind the last. It owns no
+   scroll handling — the scrubber calls enter()/exit() off the very same
+   clamped progress value it uses to choose a frame, so the reveal cannot
+   drift out of step with the picture underneath it.
+
+   The animation itself is entirely CSS. Both directions are the same two
+   states, so scrolling away runs the words back out and returning replays
+   the arrival from the top, as many times as the viewer likes. */
 (function () {
   'use strict';
 
-  var GOLD   = 'Welcome to ';
-  var ACCENT = 'Netora';
-  var LINE2  = 'Here we turn dreams into reality';
+  var root = document.getElementById('hero');
+  if (!root) return;
 
-  var SETTLE = 300;   // beat between arriving and the first character
-  var SPEED1 = 100;   // ms/char on line 1 — slow, this is the dramatic beat
-  var SPEED2 = 42;    // ms/char on line 2 — quicker, and following straight
-                      // on: there is no pause between the lines, so the two
-                      // read as one accelerating run rather than two events
-  var BEAT   = 260;   // pause before the arrow starts to fade up
+  var shown = false;
+  var fonts = false;
+  var want  = false;
 
-  // Timeline marks, in ms from the moment the hold is reached.
-  var T1  = SETTLE + (GOLD.length + ACCENT.length) * SPEED1;   // line 1 done
-  var T2  = T1 + LINE2.length * SPEED2;                        // line 2 done
-  var END = T2 + BEAT;                                         // arrow fades
-
-  var root   = document.getElementById('hero');
-  var gold   = document.getElementById('hero-gold');
-  var accent = document.getElementById('hero-accent');
-  var line2  = document.getElementById('hero-l2');
-  var arrow  = document.getElementById('hero-arrow');
-  if (!root || !gold || !accent || !line2 || !arrow) return;
-
-  var reduce = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
-
-  var now = (window.performance && window.performance.now)
-    ? function () { return window.performance.now(); }
-    : function () { return Date.now(); };
-
-  var shown   = false;  // block currently faded in
-  var running = false;  // clock advancing
-  var done    = false;  // fully typed — this never types a second time
-  var fonts   = false;  // webfonts settled, so nothing reflows mid-type
-  var at      = 0;      // position along the timeline, ms
-  var mark    = 0;      // clock reading the current run started from
-  var raf     = 0;
-
-  function advance() {
-    var t = now();
-    var dt = t - mark;
-    // A backgrounded tab stops rAF while the clock keeps going; without
-    // this cap the reveal would be over before it was ever on screen.
-    at += dt > 250 ? 250 : dt;
-    mark = t;
-  }
-
-  function cut(el, text, n) {
-    var next = n <= 0 ? '' : n >= text.length ? text : text.slice(0, n);
-    if (el.textContent !== next) el.textContent = next;
-  }
-
-  function render() {
-    var n1 = Math.floor((at - SETTLE) / SPEED1);
-    cut(gold, GOLD, n1);
-    cut(accent, ACCENT, n1 - GOLD.length);
-    cut(line2, LINE2, Math.floor((at - T1) / SPEED2));
-    if (at >= T2 + BEAT) arrow.classList.add('in');
-  }
-
-  function stop() {
-    running = false;
-    if (raf) { cancelAnimationFrame(raf); raf = 0; }
-  }
-
-  function finish() {
-    stop();
-    done = true;
-    at = END;
-    render();
-  }
-
-  function tick() {
-    raf = 0;
-    if (!running) return;
-    advance();
-    if (at >= END) { finish(); return; }
-    render();
-    raf = requestAnimationFrame(tick);
-  }
-
-  function resume() {
-    if (done || running || !fonts) return;
-    if (reduce) { finish(); return; }   // no typing, just the finished state
-    running = true;
-    mark = now();
-    raf = requestAnimationFrame(tick);
-  }
-
-  function pause() {
-    if (!running) return;
-    advance();
-    stop();
-  }
-
+  // Hold the first reveal until the webfonts have settled. A swap mid-flight
+  // would re-measure every word and shuffle them under their own animation.
   function ready() {
     if (fonts) return;
     fonts = true;
-    if (shown) resume();
+    if (want) show();
+  }
+
+  function show() {
+    if (shown) return;
+    shown = true;
+    root.classList.add('on');
   }
 
   if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
     var bail = setTimeout(ready, 1500);
-    document.fonts.ready.then(function () {
-      clearTimeout(bail);
-      ready();
-    }, ready);
+    document.fonts.ready.then(function () { clearTimeout(bail); ready(); }, ready);
   } else {
     fonts = true;
   }
 
-  /* The scrubber drives these. Both are called on every painted scroll
-     event, so both are guarded down to a no-op once settled. */
+  /* The scrubber drives these, on every painted scroll event, so both are
+     guarded down to a no-op once they have had their effect. */
   window.NetoraHero = {
-    // Settled on the last frame: fade in, and start (or pick back up) the
-    // type-out. Once done it only ever fades — the beat happens once.
+    // Settled on the last frame.
     enter: function () {
-      if (!shown) {
-        shown = true;
-        root.classList.add('on');
-      }
-      resume();
+      want = true;
+      if (fonts) show();
     },
-    // Left the hold. Out of the way fast, and hold the clock where it is
-    // so a viewer who bails mid-reveal is not robbed of the rest of it.
+    // Left the hold: the words drop back out together. Nothing is latched,
+    // so the next arrival plays the whole reveal again from the start.
     exit: function () {
+      want = false;
       if (!shown) return;
       shown = false;
       root.classList.remove('on');
-      pause();
     }
   };
 })();
