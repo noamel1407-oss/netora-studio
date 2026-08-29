@@ -74,7 +74,6 @@
       0 0
       max(6vw, calc(env(safe-area-inset-left) + 1rem));
     pointer-events:none;
-    text-shadow:0 2px 40px rgba(0,0,0,.8), 0 1px 4px rgba(0,0,0,.6);
     -webkit-font-smoothing:antialiased;
   }
 
@@ -90,6 +89,27 @@
     opacity:0;
     transform:translateY(.42em);
     filter:blur(9px);
+  }
+
+  /* Readability halo. The rotunda behind the type is not a flat backdrop —
+     the light shaft off the oculus crosses right through the headline — so
+     each glyph carries its own pool of darkness to sit in. Three stacked
+     shadows at zero offset: a tight one that does the separating, a mid one
+     that softens its edge, and a wide one that just lowers the whole area.
+     No offset, so it reads as a halo rather than a drop shadow, and no
+     single layer is opaque enough to look like an outline.
+
+     Radii are in em and the rule is on the three line elements rather than
+     on #hero, because em on the container would resolve against the
+     container's font-size and the halo would come out the same absolute
+     size on 66px type and 32px type. Tune the alphas to change strength. */
+  .hero-l1,
+  .hero-l2,
+  .hero-arrow{
+    text-shadow:
+      0 0 .10em rgba(2, 6, 16, .66),
+      0 0 .28em rgba(2, 6, 16, .56),
+      0 0 .80em rgba(2, 6, 16, .45);
   }
 
   .hero-l1{
