@@ -44,7 +44,6 @@
   #load{
     position:fixed;
     top:0; left:0;
-    z-index:3;                                   /* above the tint below */
     height:2px;
     width:0;
     background:#c8a04a;
@@ -53,25 +52,6 @@
     will-change:width;
   }
   #load.done{ opacity:0; }
-
-  /* ---------- world tint ---------- */
-
-  /* The rotunda renders bright; this sinks it to deep navy so the type sits
-     on something quieter. It is its own fixed layer between the canvas
-     (z-index auto) and the text (z-index 2), so it darkens the picture and
-     nothing else — the frames are untouched on disk and the canvas is
-     neither filtered nor redrawn, which also keeps it off the scrub's
-     per-frame work. */
-  #tint{
-    position:fixed;
-    inset:0;
-    z-index:1;
-    pointer-events:none;
-    background:
-      radial-gradient(125% 88% at 50% 42%, rgba(2,7,22,.30) 0%, rgba(1,4,14,.66) 100%),
-      rgb(4,10,28);
-    opacity:.78;
-  }
 
   /* ---------- hero overlay ---------- */
 
@@ -83,21 +63,23 @@
     position:fixed;
     top:0; left:0;
     z-index:2;
-    /* Half the viewport, less a margin — the block stays clear of the
-       centre line at every width, and on a phone this is also what makes
-       line 2 break in two. */
-    max-width:48vw;
+    /* Desktop keeps the whole block off the centre line; phones take more
+       width below. Everything is in vw so the proportions hold at any size. */
+    max-width:49vw;
     padding:
-      calc(clamp(2.4rem, 9vh, 7rem) + env(safe-area-inset-top))
+      calc(30vh + env(safe-area-inset-top))
       0 0
-      calc(clamp(0.9rem, 4vw, 3.5rem) + env(safe-area-inset-left));
+      max(6vw, calc(env(safe-area-inset-left) + 1rem));
     opacity:0;
     pointer-events:none;
     text-shadow:0 2px 40px rgba(0,0,0,.8), 0 1px 4px rgba(0,0,0,.6);
     -webkit-font-smoothing:antialiased;
-    transition:opacity .2s ease;
+    /* A guard, never a visible animation: on the way out it holds at full
+       opacity until the words have finished leaving, then switches. Fading
+       the container instead would hide the very motion it is covering. */
+    transition:opacity 0s linear .42s;
   }
-  #hero.on{ opacity:1; transition:opacity .15s ease; }
+  #hero.on{ opacity:1; transition:opacity 0s; }
 
   /* Every word is always in the document and always occupies its own space;
      only opacity, transform and blur change, and none of those affect
@@ -122,26 +104,49 @@
     transition-delay:calc(var(--i) * 62ms);
   }
 
+  /* Sizes are solved from measurements of the shipped face, not guessed.
+     Cap-height is 0.625 of the em, so a 5.5vw capital wants an 8.8vw
+     font-size; "Welcome to Netora" renders 7.72x its font-size wide and
+     "Here we turn dreams" 8.37x, which is what fixes the desktop ceilings
+     (6vw of left margin + ink must clear 50vw). */
   .hero-l1{
+    /* The padding above puts the line BOX at 30vh; this lifts it by the
+       leading and the gap above the capitals, so the glyph tops land there
+       instead. In em, so it re-solves itself for each size regime. */
+    margin-top:-.33em;
     font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
     font-weight:500;
-    font-size:clamp(1.05rem, 2.3vw, 2.2rem);
-    line-height:1.2;
+    font-size:4.6vw;
+    line-height:1.1;
     letter-spacing:.006em;
     color:#d9b877;                                  /* warm gold */
   }
+  /* Deep navy. Measured, the rotunda behind this word sits at almost exactly
+     a navy's own luminance — rgb(35,90,134) on a phone, where the light shaft
+     falls — so no navy can carry itself on colour alone there: even pure
+     black reaches only 2.87:1 against it. Lightening toward the backdrop
+     makes it worse, not better, so the lift is a halo rather than a paler
+     blue, and the word keeps the deep navy it was asked for. */
   .hero-l1 .accent{
-    color:#79bdff;                                  /* the dome's blue */
-    text-shadow:0 0 30px rgba(112,180,255,.34), 0 2px 26px rgba(0,0,0,.78);
+    color:#2c5296;
+    /* Radii in em, not px: the halo has to stay the same size relative to
+       the letters, or it thins out as the type grows and the word goes dim
+       on wide screens. */
+    text-shadow:
+      0 0 .035em rgba(255,255,255,.98),
+      0 0 .10em  rgba(240,248,255,.85),
+      0 0 .42em  rgba(190,222,255,.70),
+      0 0 1em    rgba(150,200,255,.50);
   }
 
-  /* The largest of the three — line 1 introduces it, this is the statement. */
+  /* The largest of the three — line 1 introduces it, this is the statement.
+     Margins are in em so the gaps grow with the type they separate. */
   .hero-l2{
-    margin-top:.34em;
+    margin-top:.7em;
     font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
     font-weight:600;
-    font-size:clamp(1.3rem, 2.8vw, 2.7rem);
-    line-height:1.26;
+    font-size:4.9vw;
+    line-height:1.15;
     letter-spacing:.004em;
     color:#dde1e6;
   }
@@ -151,23 +156,26 @@
   .hero-arrow{
     width:fit-content;
     max-width:100%;
-    margin-top:1.5em;
+    margin-top:2.6em;
     font-family:'Heebo', 'Arial Hebrew', Arial, sans-serif;
     font-weight:500;
-    font-size:clamp(.95rem, 1.1vw, 1.35rem);
-    line-height:1.45;
+    font-size:2.2vw;
+    line-height:1.4;
     letter-spacing:.01em;
     color:rgba(200,160,74,.72);                     /* muted #c8a04a */
   }
 
-  /* Phones. Sized so line 2 breaks of its own accord after "dreams", and so
-     the three sizes land within a pixel of the desktop rule at the
-     breakpoint — 18.4 / 22.4 / 15.2px here against 17.7 / 21.5 / 15.2px
-     there — leaving nothing to jump across it. */
+  /* Phones run the reference scale itself: 8.8vw gives line 1 the 5.5vw
+     cap-height, line 2 is 9vw and breaks of its own accord after "dreams",
+     and the block is allowed 88vw. The two regimes cannot meet — a 5.5vw
+     capital and a block inside 50vw are not simultaneously satisfiable at
+     any width — so the step at 768px is the one the brief asks for, not an
+     oversight. */
   @media (max-width:767.98px){
-    .hero-l1{ font-size:clamp(.95rem, 4.3vw, 1.15rem); }
-    .hero-l2{ font-size:clamp(1.1rem, 5.4vw, 1.4rem); }
-    .hero-arrow{ font-size:clamp(.78rem, 3.2vw, .95rem); }
+    #hero{ max-width:88vw; }
+    .hero-l1{ font-size:8.8vw; }
+    .hero-l2{ font-size:9vw; }
+    .hero-arrow{ font-size:4vw; }
   }
 
   /* The real text, for assistive tech and for anything reading the page
@@ -186,21 +194,18 @@
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
     #hero, #hero.on{ transition:none; }
-    /* land on the finished state, with no travel and nothing to blur */
-    .w, #hero.on .w{
-      transition:none;
-      transition-delay:0s;
-      opacity:1;
-      transform:none;
-      filter:none;
-    }
+    /* Keep the sequence and both of its directions — just take away the
+       travel and the blur, which are the parts that are actually motion.
+       Blanking the whole rule here is what made the reveal look like it
+       simply appeared, in both directions, for anyone with the setting on. */
+    .w{ transform:none; filter:none; transition:opacity .3s ease; }
+    #hero.on .w{ transform:none; filter:none; }
   }
 </style>
 </head>
 <body>
 
 <div id="stage"><canvas id="frame"></canvas></div>
-<div id="tint"></div>
 <div id="load"></div>
 
 <div id="hero">
