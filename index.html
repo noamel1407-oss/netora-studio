@@ -81,75 +81,26 @@
   }
   #hero.on{ opacity:1; transition:opacity 0s; }
 
-  /* Every word is a span, and every character inside it is a span too. All
-     of them are always in the document, always occupying their space; the
-     variants only ever touch opacity, transform, filter and a caret drawn as
-     a pseudo-element. None of those affect layout, so the three animations
-     are guaranteed to lay out identically and nothing reflows mid-reveal.
-
-     Each variant is two CSS states and a per-item delay, which is what makes
-     the reverse free and identical in all three: leaving the hold runs the
-     same two states backwards, and because nothing is latched, arriving
-     again replays from the top however many times you like. --i numbers the
-     words, --n numbers the characters (spaces included, so the rhythm keeps
-     them). */
-  .w{ display:inline-block; }
-
-  /* ---- variant 1: typewriter, one character at a time ---- */
-  #hero[data-anim="1"] .c{
-    opacity:0;
-    transition:opacity .12s ease;               /* leaving: all at once */
-  }
-  #hero[data-anim="1"].on .c{
-    opacity:1;
-    transition:opacity 0s;                      /* arriving: it snaps on... */
-    transition-delay:calc(var(--n) * 34ms);     /* ...at its turn in the queue */
-  }
-  /* The caret is one bar per character, each alive for exactly its own tick,
-     so it marches along the line as the letters land. */
-  #hero[data-anim="1"] .c{ position:relative; }
-  #hero[data-anim="1"].on .c::after{
-    content:"";
-    position:absolute;
-    left:100%; top:.1em;
-    width:.055em; height:.78em;
-    background:currentColor;
-    opacity:0;
-    animation:caret-step 34ms step-end calc(var(--n) * 34ms) 1 forwards;
-  }
-  #hero[data-anim="1"] [dir="rtl"] .c::after{ left:auto; right:100%; }
-  #hero[data-anim="1"].on .c.last::after{
-    animation:caret-blink .9s step-end calc(var(--n) * 34ms) infinite;
-  }
-  @keyframes caret-step { from{ opacity:.75 } to{ opacity:0 } }
-  @keyframes caret-blink{ 0%,50%{ opacity:.75 } 50.01%,100%{ opacity:0 } }
-
-  /* ---- variant 2: each word rises into place as it fades up ---- */
-  #hero[data-anim="2"] .w{
+  /* Every word is a span, always in the document and always occupying its
+     space; the reveal only moves opacity, transform and blur, none of which
+     affect layout, so nothing reflows mid-reveal. Two states and a per-word
+     delay, which is also what makes the reverse free — leaving runs the same
+     two states backwards, and nothing is latched, so arriving replays it. */
+  .w{
+    display:inline-block;
     opacity:0;
     transform:translateY(.42em);
     filter:blur(9px);
     transition:opacity .26s ease, transform .26s ease, filter .26s ease;
   }
-  #hero[data-anim="2"].on .w{
+  #hero.on .w{
     opacity:1;
     transform:none;
     filter:blur(0);
     transition:opacity .52s ease-out,
                transform .52s cubic-bezier(.22,.68,.24,1),
                filter .52s ease-out;
-    transition-delay:calc(var(--i) * 62ms);
-  }
-
-  /* ---- variant 3: each word fades up, nothing moves ---- */
-  #hero[data-anim="3"] .w{
-    opacity:0;
-    transition:opacity .2s ease;
-  }
-  #hero[data-anim="3"].on .w{
-    opacity:1;
-    transition:opacity .34s ease;
-    transition-delay:calc(var(--i) * 46ms);
+    transition-delay:calc(var(--i) * 62ms);   /* 10 words, last settles ~1.08s */
   }
 
   .hero-l1{
@@ -164,14 +115,6 @@
     letter-spacing:.006em;
     color:#d9b877;                                  /* warm gold */
   }
-  /* Plain solid colour, no halo, glow or edge of any kind. text-shadow is
-     set to none rather than left to inherit, so the word carries nothing but
-     its own colour. */
-  .hero-l1 .accent{
-    color:#071426;
-    text-shadow:none;
-  }
-
   /* The largest of the three — line 1 introduces it, this is the statement.
      Margins are in em so the gaps grow with the type they separate. */
   .hero-l2{
@@ -213,35 +156,21 @@
 
   /* The real text, for assistive tech and for anything reading the page
      without running the reveal. The animated copy above is aria-hidden. */
-  /* Tiny variant switcher. Its own layer, above the text, and the only thing
-     on the page that takes a pointer. */
-  #anim{
+  /* TEMPORARY — reveal counter, so the replay can be confirmed on a real
+     device. To remove it: delete this rule, the #reveals element in the body,
+     and the three lines marked TEMPORARY in the hero script. */
+  #reveals{
     position:fixed;
     z-index:4;
-    right:calc(.75rem + env(safe-area-inset-right));
-    bottom:calc(.75rem + env(safe-area-inset-bottom));
-    display:flex;
-    gap:.25rem;
-    padding:.25rem;
-    border-radius:999px;
-    background:rgba(8,14,26,.55);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    border:1px solid rgba(200,160,74,.28);
-  }
-  #anim button{
-    width:1.85rem; height:1.85rem;
-    border:0;
-    border-radius:999px;
-    background:transparent;
-    color:rgba(226,214,190,.72);
-    font:600 .8rem/1 system-ui, -apple-system, sans-serif;
-    cursor:pointer;
-    -webkit-tap-highlight-color:transparent;
-  }
-  #anim button[aria-pressed="true"]{
-    background:rgba(200,160,74,.9);
-    color:#0b1220;
+    right:calc(.6rem + env(safe-area-inset-right));
+    bottom:calc(.6rem + env(safe-area-inset-bottom));
+    padding:.32rem .55rem;
+    border-radius:.4rem;
+    background:rgba(8,14,26,.6);
+    border:1px solid rgba(200,160,74,.32);
+    color:rgba(226,214,190,.85);
+    font:600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    pointer-events:none;
   }
 
   .hero-sr{
@@ -257,20 +186,11 @@
 
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
-    #hero, #hero.on{ transition:none; }
-    /* Keep every variant's sequence and both of its directions — take away
-       only the parts that are actually motion. Variant 1 stops flickering
-       character by character and reveals whole words instead. */
-    #hero[data-anim="2"] .w, #hero[data-anim="2"].on .w{ transform:none; filter:none; }
-    #hero[data-anim="1"] .c{ opacity:1; transition:none; }
-    #hero[data-anim="1"].on .c::after,
-    #hero[data-anim="1"].on .c.last::after{ animation:none; opacity:0; }
-    #hero[data-anim="1"] .w{ opacity:0; transition:opacity .28s ease; }
-    #hero[data-anim="1"].on .w{
-      opacity:1;
-      transition:opacity .4s ease;
-      transition-delay:calc(var(--i) * 50ms);
-    }
+    /* The container guard keeps its delayed switch here too. Making it
+       instant hid the words before they could fade out, so the reverse
+       looked broken for anyone with this setting on. Only the travel and
+       the blur go; the sequence and both directions stay. */
+    .w, #hero.on .w{ transform:none; filter:none; }
   }
 </style>
 </head>
@@ -279,130 +199,116 @@
 <div id="stage"><canvas id="frame"></canvas></div>
 <div id="load"></div>
 
-<div id="hero" data-anim="2">
+<div id="hero">
   <h1 class="hero-sr">Welcome to Netora</h1>
   <p class="hero-sr">Here we turn dreams into reality</p>
   <p class="hero-sr" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</p>
 
-  <!-- One span per word, one per character inside it. --i is the word's
-       place in the queue, --n the character's; both count spaces, so the
-       three variants share one rhythm. -->
+  <!-- One span per word. --i is its place in the queue; the reveal walks
+       them in reading order, line 1, then line 2, then the Hebrew. -->
   <div aria-hidden="true">
     <div class="hero-l1">
-      <span class="w" style="--i:0"><span class="c" style="--n:0">W</span><span class="c" style="--n:1">e</span><span class="c" style="--n:2">l</span><span class="c" style="--n:3">c</span><span class="c" style="--n:4">o</span><span class="c" style="--n:5">m</span><span class="c" style="--n:6">e</span></span>
-      <span class="w" style="--i:1"><span class="c" style="--n:8">t</span><span class="c" style="--n:9">o</span></span>
-      <span class="w accent" style="--i:2"><span class="c" style="--n:11">N</span><span class="c" style="--n:12">e</span><span class="c" style="--n:13">t</span><span class="c" style="--n:14">o</span><span class="c" style="--n:15">r</span><span class="c" style="--n:16">a</span></span>
+      <span class="w" style="--i:0">Welcome</span>
+      <span class="w" style="--i:1">to</span>
+      <span class="w" style="--i:2">Netora</span>
     </div>
     <div class="hero-l2">
-      <span class="w" style="--i:3"><span class="c" style="--n:18">H</span><span class="c" style="--n:19">e</span><span class="c" style="--n:20">r</span><span class="c" style="--n:21">e</span></span>
-      <span class="w" style="--i:4"><span class="c" style="--n:23">w</span><span class="c" style="--n:24">e</span></span>
-      <span class="w" style="--i:5"><span class="c" style="--n:26">t</span><span class="c" style="--n:27">u</span><span class="c" style="--n:28">r</span><span class="c" style="--n:29">n</span></span>
-      <span class="w" style="--i:6"><span class="c" style="--n:31">d</span><span class="c" style="--n:32">r</span><span class="c" style="--n:33">e</span><span class="c" style="--n:34">a</span><span class="c" style="--n:35">m</span><span class="c" style="--n:36">s</span></span>
-      <span class="w" style="--i:7"><span class="c" style="--n:38">i</span><span class="c" style="--n:39">n</span><span class="c" style="--n:40">t</span><span class="c" style="--n:41">o</span></span>
-      <span class="w" style="--i:8"><span class="c" style="--n:43">r</span><span class="c" style="--n:44">e</span><span class="c" style="--n:45">a</span><span class="c" style="--n:46">l</span><span class="c" style="--n:47">i</span><span class="c" style="--n:48">t</span><span class="c" style="--n:49">y</span></span>
+      <span class="w" style="--i:3">Here</span>
+      <span class="w" style="--i:4">we</span>
+      <span class="w" style="--i:5">turn</span>
+      <span class="w" style="--i:6">dreams</span>
+      <span class="w" style="--i:7">into</span>
+      <span class="w" style="--i:8">reality</span>
     </div>
-    <div class="hero-arrow" lang="he" dir="rtl"><span class="w" style="--i:9"><span class="c" style="--n:51">↓</span><span class="c" style="--n:52">&#160;</span><span class="c" style="--n:53">ל</span><span class="c" style="--n:54">צ</span><span class="c" style="--n:55">פ</span><span class="c" style="--n:56">י</span><span class="c" style="--n:57">י</span><span class="c" style="--n:58">ה</span><span class="c" style="--n:59">&#160;</span><span class="c" style="--n:60">ב</span><span class="c" style="--n:61">ע</span><span class="c" style="--n:62">ב</span><span class="c" style="--n:63">ו</span><span class="c" style="--n:64">ד</span><span class="c" style="--n:65">ו</span><span class="c" style="--n:66">ת</span><span class="c" style="--n:67">&#160;</span><span class="c" style="--n:68">ש</span><span class="c" style="--n:69">ל</span><span class="c" style="--n:70">נ</span><span class="c last" style="--n:71">ו</span></span></div>
+    <div class="hero-arrow" lang="he" dir="rtl"><span class="w" style="--i:9">↓ לצפייה בעבודות שלנו</span></div>
   </div>
 </div>
 
-<div id="anim" role="group" aria-label="Text reveal style">
-  <button type="button" data-anim="1" aria-pressed="false">1</button>
-  <button type="button" data-anim="2" aria-pressed="true">2</button>
-  <button type="button" data-anim="3" aria-pressed="false">3</button>
-</div>
+<!-- TEMPORARY: reveal counter. Remove this element, the #reveals CSS
+     rule, and the three TEMPORARY lines in the hero script. -->
+<div id="reveals">reveals: 0</div>
 
 <script>
-/* The hero overlay reveals itself once the rotunda has settled. It owns no
-   scroll handling — the scrubber calls enter()/exit() off the very same
-   clamped progress value it uses to choose a frame, so the reveal cannot
-   drift out of step with the picture underneath it.
+/* The hero overlay reveals itself once the rotunda has settled: each word
+   rises into place out of a blur, one a beat behind the last.
 
-   The animation itself is entirely CSS, and all three variants are built the
-   same way: two states and a per-item delay. Both directions therefore come
-   from one mechanism, which is why the reverse behaves identically in each —
-   leaving the hold runs the states backwards, and since nothing is latched,
-   returning replays from the top every time. */
+   The reveal still only ever starts while the scrubber says the scrub is
+   finished — it is the scrubber that calls enter()/exit(), off the very same
+   clamped value it uses to choose a frame, and this file never reads the
+   scroll to decide that.
+
+   What it does read the scroll for is WHERE inside the hold the viewer is.
+   That hold is a whole viewport tall, so "left the hold" only becomes true
+   after a full screen of scrolling up; anything shorter kept p at 1, left
+   enter() a no-op, and the reveal never replayed. Scrolling up by a tenth of
+   a screen now dismisses it and scrolling back down plays it again, so the
+   replay follows the gesture rather than the geometry. */
 (function () {
   'use strict';
 
-  var root = document.getElementById('hero');
-  var bar  = document.getElementById('anim');
+  var root  = document.getElementById('hero');
+  var badge = document.getElementById('reveals');          // TEMPORARY
   if (!root) return;
 
-  var VARIANTS = ['1', '2', '3'];
-  var DEFAULT  = '2';
-  var KEY      = 'netora-anim';
+  var shown  = false;   // the reveal class is applied
+  var fonts  = false;   // webfonts settled; a swap mid-flight would re-measure
+  var inHold = false;   // the scrubber says the scrub is finished
+  var entered = false;  // arrived from outside the hold — show on sight
+  var peak   = 0;       // deepest scroll seen since the words appeared
+  var trough = 0;       // highest scroll seen since they were dismissed
+  var fires  = 0;       // TEMPORARY
 
-  var want  = false;   // the scroll is settled on the final frame
-  var shown = false;   // the reveal class is applied
-  var fonts = false;   // webfonts settled; a swap mid-flight would re-measure
-  var swap  = 0;
-
-  function sync() {
-    if (want && fonts) {
-      if (!shown) { shown = true; root.classList.add('on'); }
-    } else if (shown) {
-      shown = false; root.classList.remove('on');
-    }
+  // A tenth of a screen: past any rubber-band or thumb jitter, well short of
+  // a deliberate scroll.
+  function step() {
+    return Math.max(60, (window.innerHeight || 800) * 0.1);
   }
 
-  /* ---------- which reveal ---------- */
-
-  function saved() {
-    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  // Clamped, because iOS rubber-banding overshoots at both ends and an
+  // overshoot at the bottom would otherwise read as a scroll back up.
+  function where() {
+    var y = window.pageYOffset;
+    if (y === undefined) y = (document.documentElement || document.body).scrollTop;
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    return y < 0 ? 0 : (y > max ? max : y);
   }
 
-  function requested() {
-    var m = /[?&]anim=([^&]*)/.exec(location.search);
-    return m ? decodeURIComponent(m[1]) : null;
+  function show(y) {
+    if (shown) return;
+    shown = true;
+    peak = y;
+    root.classList.add('on');
+    fires++;                                                     // TEMPORARY
+    if (badge) badge.textContent = 'reveals: ' + fires;          // TEMPORARY
   }
 
-  function commit(v) {
-    root.setAttribute('data-anim', v);
-    try { localStorage.setItem(KEY, v); } catch (e) {}
-    if (bar) {
-      var bs = bar.getElementsByTagName('button');
-      for (var i = 0; i < bs.length; i++) {
-        bs[i].setAttribute('aria-pressed',
-          bs[i].getAttribute('data-anim') === v ? 'true' : 'false');
-      }
-    }
-    // Keep the address bar in step, so a chosen variant is a shareable link.
-    try {
-      var u = new URL(location.href);
-      u.searchParams.set('anim', v);
-      history.replaceState(null, '', u.pathname + u.search + u.hash);
-    } catch (e) {}
-  }
-
-  // Switching (or re-picking the current one) plays the reveal again, out and
-  // then back in — the same round trip scrolling away and back would give.
-  function choose(v) {
-    if (VARIANTS.indexOf(v) < 0) return;
-    if (!shown) { commit(v); return; }
+  function hide(y) {
+    if (!shown) return;
     shown = false;
+    trough = y;
     root.classList.remove('on');
-    clearTimeout(swap);
-    swap = setTimeout(function () { commit(v); void root.offsetWidth; sync(); }, 330);
   }
 
-  var start = requested() || saved() || DEFAULT;
-  commit(VARIANTS.indexOf(start) < 0 ? DEFAULT : start);
-
-  if (bar) {
-    bar.addEventListener('click', function (e) {
-      var el = e.target;
-      while (el && el !== bar && !el.getAttribute('data-anim')) el = el.parentNode;
-      if (el && el !== bar) choose(el.getAttribute('data-anim'));
-    });
+  function settle() {
+    var y = where();
+    if (!inHold) { hide(y); return; }
+    if (!fonts) return;
+    if (shown) {
+      if (y > peak) peak = y;
+      if (peak - y > step()) hide(y);        // scrolled back up: dismiss
+    } else if (entered) {
+      entered = false;
+      show(y);                               // came in from outside the hold
+    } else {
+      if (y < trough) trough = y;
+      if (y - trough > step()) show(y);      // scrolled back down: replay
+    }
   }
-
-  /* ---------- fonts ---------- */
 
   function ready() {
     if (fonts) return;
     fonts = true;
-    sync();
+    settle();
   }
 
   if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
@@ -412,11 +318,10 @@
     fonts = true;
   }
 
-  /* The scrubber drives these, on every painted scroll event, so both are
-     guarded down to a no-op once they have had their effect. */
+  /* The scrubber drives these on every painted scroll event. */
   window.NetoraHero = {
-    enter: function () { want = true;  sync(); },
-    exit:  function () { want = false; sync(); }
+    enter: function () { inHold = true;  settle(); },
+    exit:  function () { inHold = false; entered = true; settle(); }
   };
 })();
 </script>
