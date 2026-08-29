@@ -93,6 +93,14 @@
     filter:blur(9px);
     transition:opacity .26s ease, transform .26s ease, filter .26s ease;
   }
+  /* Used for a single frame inside show(): the words are already at the
+     hidden state through the rule above, and this strips the transition so
+     they SNAP there instead of easing. Forcing a reflow while it is applied
+     is what makes the browser commit that state, so the reveal that follows
+     starts from a true zero every time — even when the previous exit was
+     interrupted a few milliseconds in. */
+  #hero.rewind .w{ transition:none; }
+
   #hero.on .w{
     opacity:1;
     transform:none;
@@ -186,11 +194,12 @@
 
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
-    /* The container guard keeps its delayed switch here too. Making it
-       instant hid the words before they could fade out, so the reverse
-       looked broken for anyone with this setting on. Only the travel and
-       the blur go; the sequence and both directions stay. */
-    .w, #hero.on .w{ transform:none; filter:none; }
+    /* The word reveal is deliberately NOT reduced here. It cannot be relied
+       on that a visitor has the setting off, and the reveal is the only thing
+       announcing the hero, so it has to read the same either way. The motion
+       it asks for is small and brief — a rise of .42em over half a second,
+       no parallax, no zoom, no spin, and nothing that tracks the scroll —
+       which is the low-risk end of what this setting exists to temper. */
   }
 </style>
 </head>
@@ -273,11 +282,23 @@
     return y < 0 ? 0 : (y > max ? max : y);
   }
 
+  // Rewind, then reveal. Adding the class on its own animates from wherever
+  // the words happen to be, so a quick scroll up and straight back down —
+  // which interrupts the 260ms exit a few frames in — replayed from ~0.8
+  // opacity and read as the text simply appearing. Every reveal now snaps
+  // back to the full hidden state first, so it always rises from zero.
   function show(y) {
     if (shown) return;
     shown = true;
     peak = y;
-    root.classList.add('on');
+
+    root.classList.remove('on');      // target: the hidden state
+    root.classList.add('rewind');     // ...reached with no transition
+    void root.offsetHeight;           // commit it — this is the load-bearing line
+    root.classList.remove('rewind');  // transitions back on
+    void root.offsetHeight;           // commit that too, before the target moves
+    root.classList.add('on');         // now the stagger runs from a true zero
+
     fires++;                                                     // TEMPORARY
     if (badge) badge.textContent = 'reveals: ' + fires;          // TEMPORARY
   }
