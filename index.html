@@ -19,11 +19,14 @@
          100  the viewport itself (never scrolls past)
          750  scrub travel — drives all 119 frames at the vault's original
               rate of ~6.36vh per frame, so the two shots read as one move
-         100  hero hold — the last entrance frame sits still down here
+         200  hero reveal — the words are written on across this, one slice
+              of scroll each, so the sentence is a function of position
+          80  end hold — the finished hero rests here. Deliberately left
+              empty: the door through to the portfolio picks up from it
        ------
-         950                                                              */
+        1130                                                              */
     background:#000;
-    height:950vh;
+    height:1130vh;
     overscroll-behavior-y:none;
   }
 
@@ -70,45 +73,23 @@
       calc(30vh + env(safe-area-inset-top))
       0 0
       max(6vw, calc(env(safe-area-inset-left) + 1rem));
-    opacity:0;
     pointer-events:none;
     text-shadow:0 2px 40px rgba(0,0,0,.8), 0 1px 4px rgba(0,0,0,.6);
     -webkit-font-smoothing:antialiased;
-    /* A guard, never a visible animation: on the way out it holds at full
-       opacity until the words have finished leaving, then switches. Fading
-       the container instead would hide the very motion it is covering. */
-    transition:opacity 0s linear .42s;
   }
-  #hero.on{ opacity:1; transition:opacity 0s; }
 
   /* Every word is a span, always in the document and always occupying its
-     space; the reveal only moves opacity, transform and blur, none of which
-     affect layout, so nothing reflows mid-reveal. Two states and a per-word
-     delay, which is also what makes the reverse free — leaving runs the same
-     two states backwards, and nothing is latched, so arriving replays it. */
+     space. The reveal writes opacity, transform and blur onto each of them
+     directly from the scroll position — no transition, no clock — so the
+     state is a pure function of where the page is. Scrolling back up runs
+     the same function backwards; there is nothing to replay and nothing to
+     get out of step. These values are the at-rest state, which is also what
+     shows if the script never runs. */
   .w{
     display:inline-block;
     opacity:0;
     transform:translateY(.42em);
     filter:blur(9px);
-    transition:opacity .26s ease, transform .26s ease, filter .26s ease;
-  }
-  /* Used for a single frame inside show(): the words are already at the
-     hidden state through the rule above, and this strips the transition so
-     they SNAP there instead of easing. Forcing a reflow while it is applied
-     is what makes the browser commit that state, so the reveal that follows
-     starts from a true zero every time — even when the previous exit was
-     interrupted a few milliseconds in. */
-  #hero.rewind .w{ transition:none; }
-
-  #hero.on .w{
-    opacity:1;
-    transform:none;
-    filter:blur(0);
-    transition:opacity .52s ease-out,
-               transform .52s cubic-bezier(.22,.68,.24,1),
-               filter .52s ease-out;
-    transition-delay:calc(var(--i) * 62ms);   /* 10 words, last settles ~1.08s */
   }
 
   .hero-l1{
@@ -238,111 +219,82 @@
 <div id="reveals">reveals: 0</div>
 
 <script>
-/* The hero overlay reveals itself once the rotunda has settled: each word
-   rises into place out of a blur, one a beat behind the last.
+/* The hero text is scrubbed, not played.
 
-   The reveal still only ever starts while the scrubber says the scrub is
-   finished — it is the scrubber that calls enter()/exit(), off the very same
-   clamped value it uses to choose a frame, and this file never reads the
-   scroll to decide that.
+   Each word's appearance is a pure function of scroll position: the scrubber
+   hands over its own progress — p is exactly 1.0 the moment the frames
+   finish — and the words are written on across the 200vh that follows, one
+   slice of scroll each, in reading order. Scrolling back up evaluates the
+   same function at a smaller number, so the words un-write themselves.
 
-   What it does read the scroll for is WHERE inside the hold the viewer is.
-   That hold is a whole viewport tall, so "left the hold" only becomes true
-   after a full screen of scrolling up; anything shorter kept p at 1, left
-   enter() a no-op, and the reveal never replayed. Scrolling up by a tenth of
-   a screen now dismisses it and scrolling back down plays it again, so the
-   replay follows the gesture rather than the geometry. */
+   There is no timer, no transition and no latched state, which is the point:
+   reversal is not a feature that has to work, it is the same arithmetic read
+   backwards. The failures this replaces were all the timed version losing
+   track of where it was when a gesture interrupted it. */
 (function () {
   'use strict';
 
   var root  = document.getElementById('hero');
-  var badge = document.getElementById('reveals');          // TEMPORARY
+  var badge = document.getElementById('reveals');            // TEMPORARY
   if (!root) return;
 
-  var shown  = false;   // the reveal class is applied
-  var fonts  = false;   // webfonts settled; a swap mid-flight would re-measure
-  var inHold = false;   // the scrubber says the scrub is finished
-  var entered = false;  // arrived from outside the hold — show on sight
-  var peak   = 0;       // deepest scroll seen since the words appeared
-  var trough = 0;       // highest scroll seen since they were dismissed
-  var fires  = 0;       // TEMPORARY
+  var words = [].slice.call(root.querySelectorAll('.w'));
+  if (!words.length) return;
 
-  // A tenth of a screen: past any rubber-band or thumb jitter, well short of
-  // a deliberate scroll.
-  function step() {
-    return Math.max(60, (window.innerHeight || 800) * 0.1);
+  // In the scrubber's units: the frames end at p = 1, and the reveal spends
+  // the next 200 of the track's 750-per-p, so it closes at p = 1.2667. What
+  // is left after that is the end hold.
+  var REVEAL = 200 / 750;
+  var SPAN   = 0.14;                              // one word's own slice
+  var STEP   = (1 - SPAN) / (words.length - 1);   // gap between word starts
+  var RISE   = 0.42;                              // em, matches the at-rest state
+  var BLUR   = 9;                                 // px, likewise
+
+  var last  = [];      // last value written per word, to skip idle writes
+  var full  = false;   // the reveal is currently complete
+  var fires = 0;       // TEMPORARY
+  var shownPct = -1;   // TEMPORARY
+
+  function ease(t) {                              // easeOutCubic
+    var v = 1 - t;
+    return 1 - v * v * v;
   }
 
-  // Clamped, because iOS rubber-banding overshoots at both ends and an
-  // overshoot at the bottom would otherwise read as a scroll back up.
-  function where() {
-    var y = window.pageYOffset;
-    if (y === undefined) y = (document.documentElement || document.body).scrollTop;
-    var max = document.documentElement.scrollHeight - window.innerHeight;
-    return y < 0 ? 0 : (y > max ? max : y);
-  }
+  function draw(u) {
+    for (var i = 0; i < words.length; i++) {
+      var t = (u - i * STEP) / SPAN;
+      t = t < 0 ? 0 : (t > 1 ? 1 : t);
+      t = Math.round(t * 1000) / 1000;
+      if (last[i] === t) continue;
+      last[i] = t;
 
-  // Rewind, then reveal. Adding the class on its own animates from wherever
-  // the words happen to be, so a quick scroll up and straight back down —
-  // which interrupts the 260ms exit a few frames in — replayed from ~0.8
-  // opacity and read as the text simply appearing. Every reveal now snaps
-  // back to the full hidden state first, so it always rises from zero.
-  function show(y) {
-    if (shown) return;
-    shown = true;
-    peak = y;
-
-    root.classList.remove('on');      // target: the hidden state
-    root.classList.add('rewind');     // ...reached with no transition
-    void root.offsetHeight;           // commit it — this is the load-bearing line
-    root.classList.remove('rewind');  // transitions back on
-    void root.offsetHeight;           // commit that too, before the target moves
-    root.classList.add('on');         // now the stagger runs from a true zero
-
-    fires++;                                                     // TEMPORARY
-    if (badge) badge.textContent = 'reveals: ' + fires;          // TEMPORARY
-  }
-
-  function hide(y) {
-    if (!shown) return;
-    shown = false;
-    trough = y;
-    root.classList.remove('on');
-  }
-
-  function settle() {
-    var y = where();
-    if (!inHold) { hide(y); return; }
-    if (!fonts) return;
-    if (shown) {
-      if (y > peak) peak = y;
-      if (peak - y > step()) hide(y);        // scrolled back up: dismiss
-    } else if (entered) {
-      entered = false;
-      show(y);                               // came in from outside the hold
-    } else {
-      if (y < trough) trough = y;
-      if (y - trough > step()) show(y);      // scrolled back down: replay
+      var e = ease(t);
+      var w = words[i].style;
+      w.opacity   = e;
+      w.transform = e >= 1 ? 'none' : 'translateY(' + ((1 - e) * RISE).toFixed(4) + 'em)';
+      w.filter    = e >= 1 ? 'none' : 'blur(' + ((1 - e) * BLUR).toFixed(2) + 'px)';
     }
   }
 
-  function ready() {
-    if (fonts) return;
-    fonts = true;
-    settle();
-  }
-
-  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
-    var bail = setTimeout(ready, 1500);
-    document.fonts.ready.then(function () { clearTimeout(bail); ready(); }, ready);
-  } else {
-    fonts = true;
-  }
-
-  /* The scrubber drives these on every painted scroll event. */
   window.NetoraHero = {
-    enter: function () { inHold = true;  settle(); },
-    exit:  function () { inHold = false; entered = true; settle(); }
+    // p comes straight from the scrubber and is not clamped: 1.0 is the frame
+    // scrub finishing, and anything above that belongs to the reveal.
+    at: function (p) {
+      var u = (p - 1) / REVEAL;
+      u = u < 0 ? 0 : (u > 1 ? 1 : u);
+      draw(u);
+
+      if (u >= 0.999) {                                        // TEMPORARY
+        if (!full) { full = true; fires++; shownPct = -1; }     // TEMPORARY
+      } else { full = false; }                                  // TEMPORARY
+      if (badge) {                                              // TEMPORARY
+        var pct = Math.round(u * 100);                          // TEMPORARY
+        if (pct !== shownPct) {                                 // TEMPORARY
+          shownPct = pct;                                       // TEMPORARY
+          badge.textContent = 'reveals: ' + fires + '  ·  ' + pct + '%';
+        }                                                       // TEMPORARY
+      }                                                         // TEMPORARY
+    }
   };
 })();
 </script>
@@ -365,10 +317,11 @@
   var VAULT = 48;
   var COUNT = 119;
 
-  // Fraction of the scroll track that drives frames. Past it the last
-  // frame simply holds, giving the hero rotunda a full viewport of stillness
-  // at the bottom. 750 of the 850vh of travel scrubs; the rest holds.
-  var SCRUB = 750 / 850;
+  // Fraction of the scroll track that drives frames. 750 of the 1030vh of
+  // travel scrubs; the rest carries the hero reveal and its end hold. The
+  // frames still finish at exactly 750vh, as they always have — only the
+  // denominator moved, because the track below them grew.
+  var SCRUB = 750 / 1030;
 
   var stage  = document.getElementById('stage');
   var canvas = document.getElementById('frame');
@@ -449,16 +402,16 @@
     // Until every frame is decoded, hold on the closed door rather than
     // showing gaps — this is what keeps scrubbing flicker-free later.
     var idx = 0;
+    var p = 0;
     if (ready) {
-      var p = progress() / SCRUB;
-      if (p > 1) p = 1;                          // the hold at the bottom
-      idx = Math.round(p * (COUNT - 1));
+      p = progress() / SCRUB;
+      idx = Math.round((p > 1 ? 1 : p) * (COUNT - 1));   // frames still clamp
     }
 
-    // The hero overlay rides the same clamp: p === 1 is the scrub finished
-    // and the rotunda holding still. Above the early-out, which returns on
-    // every scroll event once the held frame is already painted.
-    if (hero) hero[ready && p >= 1 ? 'enter' : 'exit']();
+    // The hero reads the same progress, unclamped: p is exactly 1 when the
+    // frames finish, and everything past that is the reveal's to spend.
+    // Above the early-out, which returns once the held frame is painted.
+    if (hero) hero.at(p);
 
     if (idx === drawn) return;
 
