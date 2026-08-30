@@ -21,12 +21,19 @@
               rate of ~6.36vh per frame, so the two shots read as one move
          200  hero reveal — the words are written on across this, one slice
               of scroll each, so the sentence is a function of position
-          80  end hold — the finished hero rests here. Deliberately left
-              empty: the door through to the portfolio picks up from it
+          80  end hold — the finished hero rests here
+          80  treasure cross-fade — the treasure room is dissolved in over
+              this, taking the rotunda and the words down with it
+          20  landing — the room, fully opaque, simply held. Deliberately
+              left empty: the portfolio picks up from it
        ------
-        1130                                                              */
+        1230
+
+       Everything above the cross-fade keeps the number it always had. The
+       track grew underneath it, not around it: the frames still finish at
+       750vh of travel and the last word still lands at 950vh. */
     background:#000;
-    height:1130vh;
+    height:1230vh;
     overscroll-behavior-y:none;
   }
 
@@ -204,6 +211,50 @@
     border:0;
   }
 
+  /* ---------- treasure room ---------- */
+
+  /* The last picture, laid over everything: the rotunda, the hero words and
+     the load hairline. Anchored to the viewport, like #stage below it, so
+     the two pictures sit in register and the dissolve is a straight blend
+     of one into the other rather than a slide.
+
+     object-fit:cover is the same framing rule blit() applies to the frames:
+     fill the viewport, keep the ratio, centre whatever overflows. So the
+     9:16 still fills a wide screen without bars and without stretching.
+
+     Opacity is written from the scroll position by script, on every paint.
+     It starts at 0 here, which is also where it stays if the script never
+     runs or the picture never arrives. No transition: the opacity is the
+     scroll position, not a reaction to it.
+
+     Deliberately no background colour. cover cannot leave a bar to fill, so
+     one would only ever show while the picture is still on its way — and a
+     black rectangle rising over the rotunda is a worse failure than the
+     rotunda simply staying. */
+  #treasure{
+    position:fixed;
+    /* One pixel of overshoot on every side, rather than inset:0. At inset:0
+       the layer's own edge does not reliably reach the last device pixel
+       column or row: measured across twelve viewport and pixel-ratio
+       combinations, several leave a hairline of the rotunda showing down the
+       edge of the screen once the room is fully up. Growing the box past the
+       viewport puts that edge off-screen, and the crop below is then figured
+       on a box two pixels larger — half a percent at phone size, which is
+       nothing, and it holds at every ratio measured.
+       The width and height have to grow with it: with them left at 100% the
+       box would simply be shifted a pixel left and the seam would move to
+       the other edge, which is worse. */
+    inset:-1px;
+    z-index:3;
+    width:calc(100% + 2px);
+    height:calc(100% + 2px);
+    object-fit:cover;
+    object-position:center;
+    opacity:0;
+    pointer-events:none;
+    will-change:opacity;
+  }
+
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
     /* The word reveal is deliberately NOT reduced here. It cannot be relied
@@ -244,6 +295,13 @@
     <div class="hero-arrow" lang="he" dir="rtl"><span class="w" style="--i:9">↓ לצפייה בעבודות שלנו</span></div>
   </div>
 </div>
+
+<!-- Decorative, and above the hero it dissolves over, so it is hidden from
+     assistive tech: there is nothing here the words below have not said.
+     Low fetch priority so it queues behind the frames — nothing needs it
+     until 1030vh of scrolling have gone by. -->
+<img id="treasure" src="images/treasure-room.jpg" alt="" aria-hidden="true"
+     decoding="async" fetchpriority="low">
 
 <script>
 /* The hero text is scrubbed, not played.
@@ -311,6 +369,90 @@
 </script>
 
 <script>
+/* The treasure room is dissolved in, not played.
+
+   Same contract as the hero above it: the opacity is a pure function of
+   scroll position, written straight from the scrubber on every paint.
+   There is no timer, no transition and no latched state, so scrolling back
+   up simply evaluates the same arithmetic at a smaller number and the room
+   fades back out, uncovering the rotunda and the words. Stopping mid-way
+   leaves it wherever the scroll left it. Reversal is not a feature that has
+   to work; it is the same sum read backwards. */
+(function () {
+  'use strict';
+
+  /* ---- the two knobs, both in vh of scroll travel ----
+
+     Travel is measured from the top of the page in the same units as the
+     ledger in the stylesheet: the frames finish at 750vh, the last word
+     lands at 950vh, the hero rests until 1030vh, and the track ends at
+     1130vh (1230vh of body, less the 100vh viewport that never scrolls
+     past). So the fade below starts the moment the finished hero has had
+     its full rest and closes 20vh short of the bottom, leaving the room
+     held at full opacity for the landing.
+
+     These two are the only numbers to touch. The frames and the words are
+     anchored to their own and do not read these. */
+  var FADE_START_VH = 1030;
+  var FADE_LEN_VH   = 80;
+
+  // The scrubber hands over p, which is exactly 1.0 when the frames finish
+  // at 750vh of travel — so p * 750 is that travel back in vh, whatever the
+  // track below it is doing.
+  var SCRUB_VH = 750;
+
+  // Guarded so that setting the length to 0 above degenerates to a hard cut
+  // at FADE_START_VH rather than to a NaN opacity.
+  var LEN = FADE_LEN_VH > 0 ? FADE_LEN_VH : 1e-6;
+
+  var el = document.getElementById('treasure');
+  if (!el) return;
+
+  var last = -1;                                  // last value written
+  var seen = 0;                                   // last p handed over
+
+  // The layer is only allowed up once there is something in it to see. If
+  // the picture is late, or never arrives at all, the rotunda keeps the
+  // screen rather than an empty rectangle dissolving over it.
+  //
+  // Asked as a question, not just listened for: the <img> sits earlier in
+  // the document than this script, and the webfont stylesheet in the head
+  // blocks inline script execution, so a fast failure — a 404 off the same
+  // origin — can be over and done with before an 'error' listener here
+  // could ever have caught it.
+  function usable() {
+    return el.complete && el.naturalWidth > 0;
+  }
+
+  function ease(t) {                              // smoothstep
+    return t * t * (3 - 2 * t);
+  }
+
+  function write(p) {
+    seen = p;
+
+    var t = usable() ? (p * SCRUB_VH - FADE_START_VH) / LEN : 0;
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    t = Math.round(t * 1000) / 1000;
+    if (t === last) return;
+    last = t;
+
+    el.style.opacity = ease(t);
+  }
+
+  // A picture that lands while the page is standing still is not a special
+  // case: run the same sum again at the position the page is already at.
+  // Without this the layer would wait for the next scroll event to notice.
+  el.addEventListener('load',  function () { write(seen); });
+  el.addEventListener('error', function () { write(seen); });
+
+  // p comes straight from the scrubber and is not clamped — 1.0 is the frame
+  // scrub finishing, and the fade lives well above that.
+  window.NetoraTreasure = { at: write };
+})();
+</script>
+
+<script>
 (function () {
   'use strict';
 
@@ -328,11 +470,12 @@
   var VAULT = 48;
   var COUNT = 119;
 
-  // Fraction of the scroll track that drives frames. 750 of the 1030vh of
-  // travel scrubs; the rest carries the hero reveal and its end hold. The
-  // frames still finish at exactly 750vh, as they always have — only the
-  // denominator moved, because the track below them grew.
-  var SCRUB = 750 / 1030;
+  // Fraction of the scroll track that drives frames. 750 of the 1130vh of
+  // travel scrubs; the rest carries the hero reveal, its end hold and the
+  // treasure cross-fade. The frames still finish at exactly 750vh, as they
+  // always have — only the denominator moved, because the track below them
+  // grew.
+  var SCRUB = 750 / 1130;
 
   var stage  = document.getElementById('stage');
   var canvas = document.getElementById('frame');
@@ -340,6 +483,7 @@
   var ctx    = canvas.getContext('2d', { alpha: false });
 
   var hero    = window.NetoraHero;
+  var chamber = window.NetoraTreasure;
 
   var images  = new Array(COUNT);
   var loaded  = 0;
@@ -419,10 +563,12 @@
       idx = Math.round((p > 1 ? 1 : p) * (COUNT - 1));   // frames still clamp
     }
 
-    // The hero reads the same progress, unclamped: p is exactly 1 when the
-    // frames finish, and everything past that is the reveal's to spend.
-    // Above the early-out, which returns once the held frame is painted.
+    // The hero and the treasure room read the same progress, unclamped: p
+    // is exactly 1 when the frames finish, and everything past that is
+    // theirs to spend. Above the early-out, which returns once the held
+    // frame is painted.
     if (hero) hero.at(p);
+    if (chamber) chamber.at(p);
 
     if (idx === drawn) return;
 
