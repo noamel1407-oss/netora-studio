@@ -512,7 +512,12 @@
   var loaded  = 0;
   var ready   = false;
   var drawn   = -1;   // frame index currently painted
-  var queued  = false;
+
+  // Paint-loop state — see schedule() below.
+  var running  = false;   // a tick chain is (believed) alive
+  var lastY    = -1;      // scrollY as of the last tick
+  var movedAt  = 0;       // when the position last changed
+  var tickedAt = 0;       // when the chain last ran, for the watchdog
 
   function pad(n) {
     return String(n).padStart(3, '0');
@@ -602,13 +607,47 @@
     blit(img);
   }
 
+  /* One scroll event used to buy exactly one rAF paint. On iOS that is not
+     enough: WebKit delivers scroll events sparsely during a momentum fling,
+     and the last one it sends can land while the page is still moving — so
+     the final paint sampled an intermediate position, and whatever the
+     reveal had half-written there stayed on screen until the next gesture.
+     The state is a pure function of position; it was the sampling that
+     stopped early.
+
+     So an event no longer buys a paint, it buys a watch: a rAF chain that
+     paints from the live position every frame and only lets go once the
+     page has not moved for SETTLE_MS. A fling keeps refreshing movedAt all
+     the way down, however few events WebKit sends, and the chain's closing
+     paints are, by construction, at the settled position. Repainting an
+     unchanged position costs a handful of compares — every layer under
+     paint() early-outs on its own memo.
+
+     The watchdog covers the other way to stall: if the chain's next frame
+     never comes back (a callback frozen in a background tab, a dropped
+     request), the next event notices the silence and starts a fresh chain.
+     If two chains ever raced, they would repaint the same numbers and
+     retire at the same deadline — idempotent, so harmless. */
+  var SETTLE_MS   = 700;    // keep watching this long after the last movement
+  var WATCHDOG_MS = 2000;   // declare a silent chain dead after this long
+
+  function tick(now) {
+    tickedAt = now;
+
+    var y = window.scrollY;
+    if (y !== lastY) { lastY = y; movedAt = now; }
+
+    paint();
+
+    if (now - movedAt > SETTLE_MS) { running = false; return; }
+    requestAnimationFrame(tick);
+  }
+
   function schedule() {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(function () {
-      queued = false;
-      paint();
-    });
+    movedAt = performance.now();          // the event itself counts as movement
+    if (running && movedAt - tickedAt < WATCHDOG_MS) return;
+    running = true;
+    requestAnimationFrame(tick);
   }
 
   /* ---------- preload ---------- */
