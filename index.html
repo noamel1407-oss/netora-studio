@@ -69,8 +69,11 @@
     /* Desktop keeps the whole block off the centre line; phones take more
        width below. Everything is in vw so the proportions hold at any size. */
     max-width:49vw;
+    /* Vertical position is a readability decision, measured rather than
+       chosen by eye — see the aspect-ratio rules below. This is the
+       portrait value. */
     padding:
-      calc(30vh + env(safe-area-inset-top))
+      calc(40vh + env(safe-area-inset-top))
       0 0
       max(6vw, calc(env(safe-area-inset-left) + 1rem));
     pointer-events:none;
@@ -165,6 +168,31 @@
 
   /* The real text, for assistive tech and for anything reading the page
      without running the reveal. The animated copy above is aria-hidden. */
+  /* Where the block sits vertically is set by the picture, not by taste.
+     blit() covers, so how much of the 9:16 still is on screen — and
+     therefore where its band of lit arched windows lands — is a function of
+     the viewport's aspect ratio, not its width. The windows occupy roughly
+     22-36% of the frame's own height; the wider the viewport, the more of
+     the top and bottom is cropped away and the higher that band rides.
+
+     Measured on the rendered page at each of these ratios, these are the
+     positions where no pixel behind any of the three lines is brighter than
+     the text it carries:
+
+       portrait      the windows sit mid-screen, and the dark dome above
+                     them is too short for the block — lifting line 1 onto
+                     it would drop line 2 straight onto the windows. The
+                     block goes below them instead.
+       1.0 - 1.45    the crop has pushed the windows up; 23vh clears them.
+       wider         only a sliver of the window band survives at the very
+                     top of the frame, so the block can ride high. */
+  @media (min-aspect-ratio:1/1) and (max-aspect-ratio:29/20){
+    #hero{ padding-top:calc(23vh + env(safe-area-inset-top)); }
+  }
+  @media (min-aspect-ratio:29/20){
+    #hero{ padding-top:calc(15vh + env(safe-area-inset-top)); }
+  }
+
   .hero-sr{
     position:absolute;
     width:1px; height:1px;
