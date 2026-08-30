@@ -19,8 +19,9 @@
          100  the viewport itself (never scrolls past)
          750  scrub travel — drives all 119 frames at the vault's original
               rate of ~6.36vh per frame, so the two shots read as one move
-         200  hero reveal — the words are written on across this, one slice
-              of scroll each, so the sentence is a function of position
+         200  hero dwell — the type-on plays itself when the scroll first
+              arrives down here, on GSAP's clock rather than the scroll's,
+              so this band is simply room to rest on while it reads
           80  end hold — the finished hero rests here
           80  treasure cross-fade — the treasure room is dissolved in over
               this, taking the rotunda and the words down with it
@@ -31,7 +32,7 @@
 
        Everything above the cross-fade keeps the number it always had. The
        track grew underneath it, not around it: the frames still finish at
-       750vh of travel and the last word still lands at 950vh. */
+       750vh of travel and the treasure fade still starts at 1030vh. */
     background:#000;
     height:1230vh;
     overscroll-behavior-y:none;
@@ -87,18 +88,19 @@
     -webkit-font-smoothing:antialiased;
   }
 
-  /* Every word is a span, always in the document and always occupying its
-     space. The reveal writes opacity, transform and blur onto each of them
-     directly from the scroll position — no transition, no clock — so the
-     state is a pure function of where the page is. Scrolling back up runs
-     the same function backwards; there is nothing to replay and nothing to
-     get out of step. These values are the at-rest state, which is also what
-     shows if the script never runs. */
-  .w{
-    display:inline-block;
+  /* The animated copy, as one block. SplitText slices it into word and
+     letter spans at run time and the type-on plays across the letters — but
+     on the way OUT the letters are never touched: a single opacity +
+     visibility write on this wrapper takes the whole sentence off screen in
+     one go, whatever inline state the letter spans were left in. Hiding at
+     the common ancestor is what makes "gone" atomic — nothing half-applied
+     further down can reach the screen through an invisible parent. These
+     two declarations are also the at-rest state, which is what shows (i.e.
+     nothing) if the script never runs; visibility rather than display so
+     the text still lays out and the webfonts are still fetched for it. */
+  #hero-type{
+    visibility:hidden;
     opacity:0;
-    transform:translateY(.42em);
-    filter:blur(9px);
   }
 
   /* Readability halo. The rotunda behind the type is not a flat backdrop —
@@ -257,12 +259,13 @@
 
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
-    /* The word reveal is deliberately NOT reduced here. It cannot be relied
-       on that a visitor has the setting off, and the reveal is the only thing
+    /* The type-on is deliberately NOT reduced here. It cannot be relied on
+       that a visitor has the setting off, and the type-on is the only thing
        announcing the hero, so it has to read the same either way. The motion
-       it asks for is small and brief — a rise of .42em over half a second,
-       no parallax, no zoom, no spin, and nothing that tracks the scroll —
-       which is the low-risk end of what this setting exists to temper. */
+       it asks for is small and brief — each letter rises .35em over half a
+       second, once, with no parallax, no zoom, no spin, and nothing that
+       tracks the scroll — which is the low-risk end of what this setting
+       exists to temper. */
   }
 </style>
 </head>
@@ -276,23 +279,13 @@
   <p class="hero-sr">Here we turn dreams into reality</p>
   <p class="hero-sr" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</p>
 
-  <!-- One span per word. --i is its place in the queue; the reveal walks
-       them in reading order, line 1, then line 2, then the Hebrew. -->
-  <div aria-hidden="true">
-    <div class="hero-l1">
-      <span class="w" style="--i:0">Welcome</span>
-      <span class="w" style="--i:1">to</span>
-      <span class="w" style="--i:2">Netora</span>
-    </div>
-    <div class="hero-l2">
-      <span class="w" style="--i:3">Here</span>
-      <span class="w" style="--i:4">we</span>
-      <span class="w" style="--i:5">turn</span>
-      <span class="w" style="--i:6">dreams</span>
-      <span class="w" style="--i:7">into</span>
-      <span class="w" style="--i:8">reality</span>
-    </div>
-    <div class="hero-arrow" lang="he" dir="rtl"><span class="w" style="--i:9">↓ לצפייה בעבודות שלנו</span></div>
+  <!-- Plain text on purpose. SplitText slices it into word and letter spans
+       at run time, once the webfonts are in, and the type-on walks the
+       letters in reading order — line 1, then line 2, then the Hebrew. -->
+  <div id="hero-type" aria-hidden="true">
+    <div class="hero-l1">Welcome to Netora</div>
+    <div class="hero-l2">Here we turn dreams into reality</div>
+    <div class="hero-arrow" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</div>
   </div>
 </div>
 
@@ -303,91 +296,165 @@
 <img id="treasure" src="images/treasure-room.jpg" alt="" aria-hidden="true"
      decoding="async" fetchpriority="low">
 
+<!-- GSAP 3.15.0 + SplitText, vendored (dist files from the gsap npm
+     package, GreenSock standard no-charge license). Local rather than a
+     CDN so the type-on has exactly one way to fail — the same way the
+     rest of the page fails — and one version, pinned by the file. -->
+<script src="vendor/gsap/gsap.min.js"></script>
+<script src="vendor/gsap/SplitText.min.js"></script>
+
 <script>
-/* The hero text is scrubbed, not played.
+/* The hero type-on is played, not scrubbed.
 
-   Each word's appearance is a pure function of scroll position: the scrubber
-   hands over its own progress — p is exactly 1.0 the moment the frames
-   finish — and the words are written on across the 200vh that follows, one
-   slice of scroll each, in reading order. Scrolling back up evaluates the
-   same function at a smaller number, so the words un-write themselves.
+   The reveal this replaces wrote opacity, transform and blur onto every
+   word on every paint, straight from the scroll position. That contract —
+   state as a pure function of position — quietly depended on the position
+   being sampled at rest, and iOS WebKit does not promise that: scroll
+   events are coalesced during a momentum fling, and the last one delivered
+   can land while the page is still moving. Words were left half-written,
+   blurred, with no further event ever coming to finish them.
 
-   There is no timer, no transition and no latched state, which is the point:
-   reversal is not a feature that has to work, it is the same arithmetic read
-   backwards. The failures this replaces were all the timed version losing
-   track of where it was when a gesture interrupted it. */
+   So position is no longer something the text is a function of; it is read
+   as one bit — has the scroll arrived at the rotunda, or left it — and the
+   animation between those two states runs once per arrival on GSAP's own
+   clock, start to finish. A missed or early scroll sample can at worst flip
+   that bit a frame late, and the type-on then still plays whole. Scrolling
+   back up does not run anything backwards: leaving hides the block and
+   rewinds the timeline while nobody can see it, and the next arrival types
+   the sentence on again from nothing.
+
+   Hiding is atomic by construction. The letters are never written on the
+   way out — one autoAlpha write on #hero-type, a single property on a
+   single element, takes the whole block off screen whatever inline state
+   the letter spans are in. There is no per-letter cleanup to be interrupted
+   mid-way, which is the residue class of bug this exists to end.
+
+   Order of operations, per the SplitText manual: fonts first
+   (document.fonts.ready), split second, animate third. Splitting against
+   the fallback font measures the wrong glyphs and the pieces keep those
+   positions — a known root cause of mis-set type — so the split is gated on
+   the fonts even though autoSplit would also catch a late-landing font.
+   autoSplit stays on as the safety net, and because the split is
+   words+chars only — no absolutely-positioned lines — the spans wrap by
+   ordinary line-breaking, so every viewport width, and the 768px regime
+   change in the stylesheet, lays out right without any re-measuring. */
 (function () {
   'use strict';
 
-  var root = document.getElementById('hero');
-  if (!root) return;
+  // In the scrubber's units: p is exactly 1.0 the moment the frames finish
+  // and the rotunda holds still, so that is the arrival. Departure is ~20vh
+  // of travel back into the pull-out — about three frames of visible camera
+  // motion — so the two thresholds cannot chatter against each other when
+  // a scroll sits right on the boundary, and the vanish is masked by the
+  // camera already moving.
+  var ENTER_AT   = 1;
+  var EXIT_BELOW = 1 - 20 / 750;
 
-  var words = [].slice.call(root.querySelectorAll('.w'));
-  if (!words.length) return;
+  var wrap  = document.getElementById('hero-type');
 
-  // In the scrubber's units: the frames end at p = 1, and the reveal spends
-  // the next 200 of the track's 750-per-p, so it closes at p = 1.2667. What
-  // is left after that is the end hold.
-  var REVEAL = 200 / 750;
-  var SPAN   = 0.14;                              // one word's own slice
-  var STEP   = (1 - SPAN) / (words.length - 1);   // gap between word starts
-  var RISE   = 0.42;                              // em, matches the at-rest state
-  var BLUR   = 9;                                 // px, likewise
+  var lastP = 0;       // latest position the scrubber handed over
+  var shown = false;   // the one latched bit: is the block on screen?
+  var tl    = null;    // current type-on; rebuilt whenever SplitText re-splits
 
-  var last = [];       // last value written per word, to skip idle writes
-
-  function ease(t) {                              // easeOutCubic
-    var v = 1 - t;
-    return 1 - v * v * v;
-  }
-
-  function draw(u) {
-    for (var i = 0; i < words.length; i++) {
-      var t = (u - i * STEP) / SPAN;
-      t = t < 0 ? 0 : (t > 1 ? 1 : t);
-      t = Math.round(t * 1000) / 1000;
-      if (last[i] === t) continue;
-      last[i] = t;
-
-      var w = words[i].style;
-
-      // t === 0 is at rest, and it is written by taking the three
-      // declarations off rather than by setting them to their at-rest
-      // values. The .w rule in the stylesheet already says exactly that —
-      // opacity 0, translateY(.42em), blur(9px) — so what is on screen is
-      // unchanged either way, and the forward reveal is untouched: it never
-      // asks for t === 0 on a word it is writing on.
-      //
-      // What changes is on the way back. Setting opacity to 0 while leaving
-      // an inline blur behind keeps the word on its own blurred, half-
-      // transparent surface: transparent on the screen rather than off it,
-      // and something has to invalidate that surface for it to go. Removing
-      // the properties destroys it instead, which is the one write that
-      // cannot come out half-applied. That matters more since the room
-      // arrived, because there is now a promoted full-screen layer sitting
-      // directly above these words.
-      if (t === 0) {
-        w.removeProperty('opacity');
-        w.removeProperty('transform');
-        w.removeProperty('filter');
-        continue;
-      }
-
-      var e = ease(t);
-      w.opacity   = e;
-      w.transform = e >= 1 ? 'none' : 'translateY(' + ((1 - e) * RISE).toFixed(4) + 'em)';
-      w.filter    = e >= 1 ? 'none' : 'blur(' + ((1 - e) * BLUR).toFixed(2) + 'px)';
-    }
-  }
-
+  // The scrubber captures window.NetoraHero synchronously when it starts,
+  // so the contract object has to exist now — before the fonts, before the
+  // split. Until the timeline exists, at() only records where the page is;
+  // the split then settles up, so a visitor already standing in the rotunda
+  // when it lands still gets the type-on.
   window.NetoraHero = {
-    // p comes straight from the scrubber and is not clamped: 1.0 is the frame
-    // scrub finishing, and anything above that belongs to the reveal.
     at: function (p) {
-      var u = (p - 1) / REVEAL;
-      draw(u < 0 ? 0 : (u > 1 ? 1 : u));
+      lastP = p;
+      settle();
     }
   };
+
+  if (!wrap || !window.gsap || !window.SplitText) return;
+  gsap.registerPlugin(SplitText);
+
+  function settle() {
+    if (!shown && tl && lastP >= ENTER_AT) {
+      shown = true;
+      gsap.killTweensOf(wrap);            // a hide still fading is cancelled, not raced
+      gsap.set(wrap, { autoAlpha: 1 });
+      // play(0) renders time zero — every letter at its hidden start —
+      // in the same JS turn as the un-hide above, so there is no frame in
+      // between for the finished sentence to flash through.
+      tl.play(0);
+    } else if (shown && lastP < EXIT_BELOW) {
+      shown = false;
+      if (tl) tl.pause();                 // freeze a type-on caught mid-flight
+      gsap.to(wrap, {
+        autoAlpha: 0,
+        duration: 0.18,
+        ease: 'power1.out',
+        overwrite: 'auto',
+        // Rewound only once invisible. If a re-arrival kills this fade
+        // first, its play(0) does the rewinding instead.
+        onComplete: function () { if (tl) tl.pause(0); }
+      });
+    }
+  }
+
+  // One tween per line, letters staggered in reading order — which for the
+  // Hebrew line IS right-to-left: the spans sit in logical order and the
+  // rtl context lays them out, and Hebrew has no joining forms, so
+  // per-letter spans render the same glyphs the plain text did. Rise and
+  // fade only, no filter: a few dozen blurred elements is exactly the
+  // compositing load mobile WebKit is worst at, and it is what the old
+  // reveal kept leaving on screen.
+  function typeOn(dur, stag) {
+    return {
+      autoAlpha: 0,
+      y: '0.35em',
+      duration: dur,
+      ease: 'power2.out',
+      stagger: stag,
+      immediateRender: true    // letters sit at their hidden start from build time
+    };
+  }
+
+  function build(self) {
+    var line = function (sel) {
+      return self.chars.filter(function (c) { return c.closest(sel); });
+    };
+
+    var t = gsap.timeline({
+      paused: true,
+      onComplete: function () {
+        // The finished state is no inline state at all: clearing the
+        // animated properties drops the letters back onto the stylesheet —
+        // no transforms, no promoted surfaces, text rendered exactly as
+        // specified — for the long dwell the sentence sits through.
+        gsap.set(self.chars, { clearProps: 'transform,opacity,visibility' });
+      }
+    });
+
+    t.from(line('.hero-l1'),    typeOn(0.55, 0.045), 0)
+     .from(line('.hero-l2'),    typeOn(0.55, 0.030), '>-0.30')
+     .from(line('.hero-arrow'), typeOn(0.45, 0.025), '>-0.20');
+
+    return t;
+  }
+
+  // Fonts first, split second, animate third — see the header note.
+  document.fonts.ready.then(function () {
+    SplitText.create(['.hero-l1', '.hero-l2', '.hero-arrow'], {
+      type: 'words,chars',     // words so wrapping stays word-wise; chars carry the type-on
+      aria: 'none',            // the .hero-sr copy is the accessible text
+      autoSplit: true,
+      onSplit: function (self) {
+        tl = build(self);
+        if (shown) {
+          // A re-split mid-dwell (a late font) rebuilds the spans bare; the
+          // sentence is supposed to be up, so put it up whole, not re-typed.
+          tl.progress(1);
+        } else {
+          settle();            // the page may already be standing in the rotunda
+        }
+        return tl;             // handed back so a re-split reverts it first
+      }
+    });
+  });
 })();
 </script>
 
