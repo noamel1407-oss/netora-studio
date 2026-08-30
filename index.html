@@ -349,8 +349,31 @@
       if (last[i] === t) continue;
       last[i] = t;
 
-      var e = ease(t);
       var w = words[i].style;
+
+      // t === 0 is at rest, and it is written by taking the three
+      // declarations off rather than by setting them to their at-rest
+      // values. The .w rule in the stylesheet already says exactly that —
+      // opacity 0, translateY(.42em), blur(9px) — so what is on screen is
+      // unchanged either way, and the forward reveal is untouched: it never
+      // asks for t === 0 on a word it is writing on.
+      //
+      // What changes is on the way back. Setting opacity to 0 while leaving
+      // an inline blur behind keeps the word on its own blurred, half-
+      // transparent surface: transparent on the screen rather than off it,
+      // and something has to invalidate that surface for it to go. Removing
+      // the properties destroys it instead, which is the one write that
+      // cannot come out half-applied. That matters more since the room
+      // arrived, because there is now a promoted full-screen layer sitting
+      // directly above these words.
+      if (t === 0) {
+        w.removeProperty('opacity');
+        w.removeProperty('transform');
+        w.removeProperty('filter');
+        continue;
+      }
+
+      var e = ease(t);
       w.opacity   = e;
       w.transform = e >= 1 ? 'none' : 'translateY(' + ((1 - e) * RISE).toFixed(4) + 'em)';
       w.filter    = e >= 1 ? 'none' : 'blur(' + ((1 - e) * BLUR).toFixed(2) + 'px)';
