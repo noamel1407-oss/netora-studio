@@ -3,17 +3,21 @@
 Stills that are laid over the frame sequence, as opposed to `frames/` and
 `frames-entrance/`, which are the sequence itself.
 
-## treasure-room.jpg — MISSING, still to be added
+## treasure-room.jpg
 
 `index.html` dissolves this in over the held rotunda across the last stretch
-of the scroll track. It is the only file the page expects here, and it is not
-in the repository yet.
+of the scroll track, from 1030vh of travel to 1110vh, and then holds it for
+the landing.
 
-  - path      images/treasure-room.jpg   (exactly this, lowercase, no spaces)
-  - shape     9:16 portrait, to match the 720x1280 frames
-  - format    JPEG
+  - 941x1672, 9:16 to within 0.05%, matching the 720x1280 frames
+  - JPEG, quality 92, 4:4:4 chroma, progressive, 780 KB
 
-Nothing else needs changing once it lands: the layer is wired to that path and
-holds itself down until the picture is decodable, so until then the page ends
-on the rotunda exactly as it did before, with no broken image and no black
-rectangle rising over it.
+Converted from a 941x1672 PNG master, which is in the history at 57e8066 if it
+is ever wanted back. 4:4:4 rather than the usual 4:2:0: the picture is fine
+gold filigree on deep blue, which is exactly the high-chroma-contrast content
+subsampling smears, and measured against the master it beats 4:2:0 on error at
+every quality that costs the same number of bytes.
+
+Sized to be the source for a phone rather than a desktop: cover crops it to
+about 475x844 CSS pixels on a 390-wide screen, which is already past 1:1 at a
+device ratio of 2. Do not scale it down.
