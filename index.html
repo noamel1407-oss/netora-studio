@@ -389,184 +389,152 @@
 
   /* ---- the nudge knobs ----
 
-     Where each plate sits, as a percentage of the treasure-room STILL:
-     0% is its left/top edge and 100% its right/bottom, whatever the screen
-     happens to be cropping. Read off the picture rather than chosen — the
-     left panel's blank blue field runs 7-21.5% across and 33-54% down, the
-     right panel's 77.5-92% across and the same band down — so each pair
-     below is simply the middle of one panel.
+     The row is anchored to the SCREEN, not to anything painted in the
+     still. It used to be the other way round — a plate on each side panel,
+     placed in the picture's own coordinates — and that is exactly what
+     cover would not allow to survive: a phone crops about 9% off each side
+     of a 9:16 still shown in a 9:19.5 window, which takes the outer half of
+     both panels with it and leaves each button standing next to its panel
+     rather than on it. One centred row low in the frame has no such
+     dependency; the centre line is the one place cover cannot move, since
+     centring what it keeps is the whole of what cover does.
 
-     These four numbers are the only ones to touch to move a button. */
+     --room-cta-y is where the row's middle sits, measured down the frame.
+     It is the number to nudge. 78% was settled on the phone, where the two
+     plates stack and the pair is at its tallest: it is the highest the row
+     can sit with both labels clear of the N cut into the floor, and it puts
+     them on the plain part of the floor just above the golden arc. On a
+     screen wide enough for one line the pair straddles the walkway instead,
+     and the N reads between the two. */
   :root{
-    --room-cta-left-x:  14.2%;
-    --room-cta-left-y:  44%;
-    --room-cta-right-x: 84.7%;
-    --room-cta-right-y: 44%;
-
-    /* The plate itself. Width and height are given rather than left to the
-       text because the clamp below has to know half of each: on a narrow
-       screen cover crops the outer edge of both panels away, and a button
-       still anchored to the middle of one would hang off the screen with
-       it. The clamp slides it back on, and needs the size to do that. */
-    --room-cta-w:    min(8.75rem, 38vw);   /* the vw arm is for 320px phones,
-                                              where two plates and their
-                                              margins have to share the width */
-    --room-cta-h:    2.75rem;   /* 44px — the smallest comfortable tap */
-    --room-cta-edge: 1rem;      /* ... and the closest it may come to the edge */
-
-    --room-ar: 0.562799;        /* 941/1672 — the still's own aspect ratio */
+    --room-cta-y:    78%;    /* down the frame, to the middle of the row */
+    --room-cta-gap:  18px;   /* between the two plates, and never less */
+    --room-cta-edge: 1rem;   /* the closest either may come to the screen edge */
   }
 
-  /* The layer the two plates live on: the same box as #treasure, laid over
-     it. It holds no state of its own. The script under the cross-fade
-     writes the room's own opacity into --room-cta-fade and turns data-live
-     on and off with it, so the buttons arrive with the room, leave with it,
-     and are tappable for exactly as long as it is on screen — including
-     the whole of the dissolve, where the picture is up but not yet opaque.
+  /* The layer the row lives on: the picture's own box, laid over it. It
+     holds no state of its own. The script under the cross-fade writes the
+     room's opacity into --room-cta-fade and turns data-live on and off with
+     it, so the buttons arrive with the room, leave with it, and are
+     tappable for exactly as long as it is on screen — the whole of the
+     dissolve included, where the picture is up but not yet opaque.
 
      The fade is carried on a custom property the buttons read rather than
      as opacity on this element, because an ancestor at less than full
-     opacity is a backdrop root: it would cut the plates' backdrop-filter
-     off from the room behind them, and the glass would only frost once the
-     dissolve had finished. */
+     opacity is a backdrop root: it would cut a button off from the room
+     behind it, and anything sampling that backdrop would stop working
+     until the dissolve had finished. */
   #room-cta{
     position:fixed;
-    /* Including the one pixel of overshoot, so the cover crop worked out
-       below is the crop the picture is actually showing. */
-    inset:-1px;
+    inset:0;
     z-index:4;
-    width:calc(100% + 2px);
-    height:calc(100% + 2px);
-
     /* The layer itself never takes a tap — only the two buttons do, and
        only while they are live. The rest of the room stays scrollable. */
     pointer-events:none;
     visibility:hidden;
-
-    /* This box's own size, in units the children can do arithmetic with.
-       Container units rather than vw/vh so they measure THIS element: on a
-       phone with a retracting URL bar the viewport and the fixed layer are
-       not the same box, and it is this one the picture fills. The vw/vh
-       pair is the fallback where container units are unavailable — off by
-       whatever the URL bar is worth, which is a nudge, not a break. */
-    --room-vw:100vw;
-    --room-vh:100vh;
-  }
-  @supports (width:1cqw){
-    #room-cta{
-      container-type:size;
-      --room-vw:100cqw;
-      --room-vh:100cqh;
-    }
   }
   #room-cta[data-live]{ visibility:visible; }
   #room-cta[data-live] .room-cta-btn{ pointer-events:auto; }
 
-  /* The picture's own box: exactly the rectangle object-fit:cover paints
-     the still into, overflow and all. max() picks the side that has to
-     overflow in order to cover, and the centring does the rest — the same
-     framing rule the image and blit() both follow. So a percentage inside
-     this box is a percentage of the STILL at every viewport ratio, which
-     is what keeps a plate on its panel as the crop changes under it. */
-  .room-cta-fit{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    width:max(var(--room-vw), calc(var(--room-vh) * var(--room-ar)));
-    height:max(var(--room-vh), calc(var(--room-vw) / var(--room-ar)));
-  }
+  /* The row: centred across the frame, its middle on --room-cta-y.
 
-  /* A plate of glass with the light behind it: the blur is what makes it
-     read as glass, the two-stop wash is the sheen down it, and the hairline
-     is the same gold as everything else in the room. Deliberately thin —
-     the panel behind has to stay legible through it.
-
-     Position is the panel coordinate, clamped to the screen. 50% is the
-     middle of the picture and --room-vw/2 is half the screen, so
-     `50% - var(--room-vw)/2` is exactly where the left edge of the screen
-     falls on the picture; the clamp keeps the plate that far in, plus its
-     own half-width, plus the margin and any notch. On anything wider than
-     a phone the clamp is slack and the anchor is used as given. */
-  .room-cta-btn{
+     It wraps rather than shrinks. Two plates at this size do not fit across
+     a phone — 40px of padding either side of a spaced-out Hebrew line is
+     most of a 390px screen on its own — so on a narrow screen they stack,
+     one over the other, still centred, still full size. Nothing here has a
+     width: the buttons are as wide as their own text and the flex line
+     breaks when the pair no longer fits, which is the same rule reading
+     "side by side where there is room" and "one above the other where there
+     is not". The gap holds in both directions, so they cannot touch. */
+  .room-cta-row{
     position:absolute;
-    left:clamp(
-      calc(50% - var(--room-vw) / 2 + var(--room-cta-w) / 2 + var(--room-cta-edge) + env(safe-area-inset-left, 0px)),
-      var(--room-cta-x),
-      calc(50% + var(--room-vw) / 2 - var(--room-cta-w) / 2 - var(--room-cta-edge) - env(safe-area-inset-right, 0px)));
-    top:clamp(
-      calc(50% - var(--room-vh) / 2 + var(--room-cta-h) / 2 + var(--room-cta-edge) + env(safe-area-inset-top, 0px)),
-      var(--room-cta-y),
-      calc(50% + var(--room-vh) / 2 - var(--room-cta-h) / 2 - var(--room-cta-edge) - env(safe-area-inset-bottom, 0px)));
-    transform:translate(-50%,-50%);
+    left:0;
+    right:0;
+    top:var(--room-cta-y);
+    transform:translateY(-50%);
 
     display:flex;
-    align-items:center;
+    flex-wrap:wrap;
     justify-content:center;
-    width:var(--room-cta-w);
-    height:var(--room-cta-h);
+    align-items:center;
+    gap:var(--room-cta-gap);
 
-    /* Written by the script, from the room's opacity. 0 until then, so a
-       page where nothing runs shows no buttons over no room. */
-    opacity:var(--room-cta-fade, 0);
-
-    font-family:'Heebo', 'Arial Hebrew', Arial, sans-serif;
-    font-weight:500;
-    font-size:.84rem;
-    line-height:1;
-    letter-spacing:.02em;
-    white-space:nowrap;
-    text-decoration:none;
-    color:#f6ecd8;
-    text-shadow:0 1px 3px rgba(2,6,16,.55);
-
-    border:1px solid rgba(236,196,122,.42);
-    border-radius:5px;
-    background:linear-gradient(160deg, rgba(255,246,225,.13), rgba(120,92,44,.10));
-    -webkit-backdrop-filter:blur(7px) saturate(125%);
-    backdrop-filter:blur(7px) saturate(125%);
-    box-shadow:
-      inset 0 1px 0 rgba(255,244,214,.20),      /* the lit top edge */
-      inset 0 -1px 0 rgba(2,6,16,.22),
-      0 4px 14px rgba(2,6,16,.30);              /* it stands off the wall */
-
-    -webkit-tap-highlight-color:transparent;
-    /* Opacity is deliberately not in this list: it is the scroll position,
-       not a reaction to it. */
-    transition:
-      border-color .25s ease,
-      background   .25s ease,
-      box-shadow   .25s ease,
-      transform    .12s ease;
+    padding-left:max(var(--room-cta-edge), env(safe-area-inset-left, 0px));
+    padding-right:max(var(--room-cta-edge), env(safe-area-inset-right, 0px));
   }
 
-  .room-cta-btn--left { --room-cta-x:var(--room-cta-left-x);  --room-cta-y:var(--room-cta-left-y); }
-  .room-cta-btn--right{ --room-cta-x:var(--room-cta-right-x); --room-cta-y:var(--room-cta-right-y); }
+  /* An engraved plate rather than a lit one: a hairline of gold, a wash
+     down the face, and the type carrying most of the weight. Cormorant
+     Garamond is the hero's own serif, already in the stylesheet link in the
+     head — this reuses it rather than asking for it twice. Hebrew is not in
+     that face, so the label itself falls through to the next serif that
+     has it. */
+  .room-cta-btn{
+    /* Written by the script, from the room's opacity. 0 until then, so a
+       page where nothing runs shows no buttons over no room. Deliberately
+       not in the transition below: the fade is the scroll position, not a
+       reaction to it. */
+    opacity:var(--room-cta-fade, 0);
 
-  /* The glow, for pointers that can hover. Touch gets the press below
-     instead — on a phone :hover sticks after the finger has gone. */
+    font-family:"Cormorant Garamond", "Frank Ruhl Libre", Georgia, serif;
+    font-size:17px;
+    font-weight:500;
+    letter-spacing:.18em;
+    direction:rtl;
+    cursor:pointer;
+    padding:14px 40px;
+    color:#d9bd77;
+    border:1px solid rgba(199,162,74,.45);
+    border-radius:1px;
+    background:linear-gradient(177deg, rgba(214,182,110,.09), rgba(199,162,74,.015) 55%, rgba(0,0,0,.06));
+    text-shadow:0 1px 1px rgba(0,0,0,.55);
+    box-shadow:
+      inset 0 1px 0 rgba(214,182,110,.14),
+      inset 0 -1px 0 rgba(0,0,0,.28);
+    transition:
+      color .6s cubic-bezier(.22,.61,.36,1),
+      border-color .6s,
+      box-shadow .6s,
+      background .6s;
+
+    /* These three are not styling decisions, they are what makes the above
+       hold on a link on a phone: no underline under the label, no break in
+       the middle of it, and no grey flash on the tap. */
+    text-decoration:none;
+    white-space:nowrap;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* Lit — the same four properties whichever way it is reached: a pointer
+     over it, a finger on it, or the keyboard. Hover is asked for rather
+     than assumed, because on a touch screen it latches after the finger
+     has gone and the plate would be left lit behind it. */
+  .room-cta-btn:active,
+  .room-cta-btn:focus-visible{
+    color:#f4e4b2;
+    border-color:rgba(220,190,120,.9);
+    background:linear-gradient(177deg, rgba(214,182,110,.16), rgba(199,162,74,.04) 55%, rgba(0,0,0,.05));
+    box-shadow:
+      inset 0 1px 0 rgba(220,190,120,.22),
+      inset 0 -1px 0 rgba(0,0,0,.25),
+      0 0 20px rgba(199,162,74,.22);
+  }
   @media (hover:hover){
     .room-cta-btn:hover{
-      border-color:rgba(236,196,122,.78);
-      background:linear-gradient(160deg, rgba(255,246,225,.20), rgba(140,106,50,.14));
+      color:#f4e4b2;
+      border-color:rgba(220,190,120,.9);
+      background:linear-gradient(177deg, rgba(214,182,110,.16), rgba(199,162,74,.04) 55%, rgba(0,0,0,.05));
       box-shadow:
-        inset 0 1px 0 rgba(255,244,214,.30),
-        0 0 22px rgba(200,160,74,.34),          /* the soft glow */
-        0 6px 18px rgba(2,6,16,.34);
+        inset 0 1px 0 rgba(220,190,120,.22),
+        inset 0 -1px 0 rgba(0,0,0,.25),
+        0 0 20px rgba(199,162,74,.22);
     }
   }
 
-  .room-cta-btn:active{
-    border-color:rgba(236,196,122,.85);
-    box-shadow:
-      inset 0 1px 0 rgba(255,244,214,.26),
-      0 0 16px rgba(200,160,74,.30),
-      0 2px 8px rgba(2,6,16,.30);
-    transform:translate(-50%,-50%) scale(.97);
-  }
-
+  /* Only for the keyboard, and on top of the lit state above: the ring is
+     what says which of the two is about to be opened. */
   .room-cta-btn:focus-visible{
-    outline:1px solid rgba(236,196,122,.9);
+    outline:1px solid rgba(220,190,120,.9);
     outline-offset:3px;
   }
 
@@ -616,15 +584,15 @@
      decoding="async" fetchpriority="low">
 
 <!-- The two ways out of the room, laid over it and nothing else: one
-     plate on each of the side panels. Where they sit is entirely in the
+     centred row of two, low in the frame. Where they sit is entirely in the
      stylesheet above; when they are live is entirely in the module below
      the cross-fade. Placeholder destinations for now — the two hrefs are
      the only things here that need swapping for the real links. -->
 <div id="room-cta">
-  <div class="room-cta-fit">
-    <a class="room-cta-btn room-cta-btn--left" lang="he" dir="rtl"
+  <div class="room-cta-row">
+    <a class="room-cta-btn" lang="he" dir="rtl"
        href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה באתר</a>
-    <a class="room-cta-btn room-cta-btn--right" lang="he" dir="rtl"
+    <a class="room-cta-btn" lang="he" dir="rtl"
        href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה באתר</a>
   </div>
 </div>
