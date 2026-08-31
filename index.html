@@ -19,9 +19,11 @@
          100  the viewport itself (never scrolls past)
          750  scrub travel — drives all 119 frames at the vault's original
               rate of ~6.36vh per frame, so the two shots read as one move
-         200  hero dwell — the type-on plays itself when the scroll first
-              arrives down here, on GSAP's clock rather than the scroll's,
-              so this band is simply room to rest on while it reads
+         200  hero dwell — the light sweep plays itself when the scroll
+              first arrives down here, on GSAP's clock rather than the
+              scroll's. The page is pinned for the first ~2.2s of that, so
+              the reveal cannot be scrolled past; the rest of the band is
+              simply room to rest on while the words read
           80  end hold — the finished hero rests here
           80  treasure cross-fade — the treasure room is dissolved in over
               this, taking the rotunda and the words down with it
@@ -88,20 +90,46 @@
     -webkit-font-smoothing:antialiased;
   }
 
-  /* The animated copy, as one block. SplitText slices it into word and
-     letter spans at run time and the type-on plays across the letters — but
-     on the way OUT the letters are never touched: a single opacity +
-     visibility write on this wrapper takes the whole sentence off screen in
-     one go, whatever inline state the letter spans were left in. Hiding at
-     the common ancestor is what makes "gone" atomic — nothing half-applied
-     further down can reach the screen through an invisible parent. These
-     two declarations are also the at-rest state, which is what shows (i.e.
-     nothing) if the script never runs; visibility rather than display so
-     the text still lays out and the webfonts are still fetched for it. */
+  /* The animated copy, as one block. Everything the reveal writes lands
+     either on this element or on a plain custom property declared on it —
+     so taking the block off screen is one opacity + visibility write here,
+     whatever the sweep left behind it. Hiding at the common ancestor is
+     what makes "gone" atomic: nothing half-applied further down can reach
+     the screen through an invisible parent. These two declarations are also
+     the at-rest state, which is what shows (i.e. nothing) if the script
+     never runs; visibility rather than display so the text still lays out
+     and the webfonts are still fetched for it. */
   #hero-type{
     visibility:hidden;
     opacity:0;
   }
+
+  /* ---------- the reveal ---------- */
+
+  /* Warm gold for the headline, off-white for the statement, and the one
+     dark muted gold both of them start in — engraved, but not yet lit. The
+     colours live here, on the wrapper, so the sweep below can be one
+     gradient declared twice rather than two unrelated animations. */
+  #hero-type{
+    --unlit:#5c4626;                                /* engraved, unlit */
+    --hot:#fffbf1;                                  /* the light band itself */
+    /* Where the band is, as a background-position percentage. It counts
+       DOWN as the sweep runs: a high number is the band still off the left
+       of the block with nothing lit, a low one is the band gone off the
+       right with everything lit. The script sweeps it 84 -> 12; see the
+       gradient below for where those two come from.
+
+       It rests at 0 — past the lit end, and so the finished state — so that
+       any path which gets the block on screen without the script driving it
+       shows lit, readable text rather than dark text. The script writes the
+       dark end into it before the block can ever be seen, and takes the
+       declaration back off once the sweep is over. */
+    --sweep:0;
+  }
+  .hero-l1{ --lit:#ecc47a; }                        /* warm gold, every word */
+  .hero-l2{ --lit:#dfe4ea; }                        /* off-white */
+
+  .hero-line{ position:relative; }
 
   /* Readability halo. The rotunda behind the type is not a flat backdrop —
      the light shaft off the oculus crosses right through the headline — so
@@ -111,17 +139,98 @@
      No offset, so it reads as a halo rather than a drop shadow, and no
      single layer is opaque enough to look like an outline.
 
-     Radii are in em and the rule is on the three line elements rather than
-     on #hero, because em on the container would resolve against the
+     Radii are in em and the rule is on the line elements rather than on
+     #hero, because em on the container would resolve against the
      container's font-size and the halo would come out the same absolute
-     size on 66px type and 32px type. Tune the alphas to change strength. */
-  .hero-l1,
-  .hero-l2,
+     size on 66px type and 32px type. Tune the alphas to change strength.
+
+     On the two English lines the halo is a layer of its own, carrying
+     nothing but the shadows — its own fill is transparent, so the shadows
+     are all that reaches the screen. That separation is forced rather than
+     stylistic: the ink layer clips a gradient to its glyphs, and an
+     element's background is painted UNDER its own text and text-shadow, so
+     a shadow on the ink would land on top of the gold instead of behind it.
+
+     A pseudo-element rather than a second span, because this copy is not
+     text: it is a shadow in the shape of text, and putting it in the
+     document would put the headline into find-in-page, selection and the
+     clipboard three times over. Same box, so it wraps identically —
+     absolutely placed against .hero-line, which the ink sizes.
+
+     Being a separate layer is not by itself enough to get it behind,
+     though, and order has nothing to do with it: this one is positioned and
+     the ink is not, and a positioned descendant paints after the in-flow
+     content of its stacking context whatever order they come in. So the ink
+     claims a stacking level of its own below, and that is what puts the
+     shadows behind the gold. */
+  .hero-line::before,
   .hero-arrow{
     text-shadow:
       0 0 .10em rgba(2, 6, 16, .66),
       0 0 .28em rgba(2, 6, 16, .56),
       0 0 .80em rgba(2, 6, 16, .45);
+  }
+  .hero-line::before{
+    content:attr(data-text);
+    position:absolute;
+    top:0; left:0; right:0;
+    color:transparent;
+    -webkit-text-fill-color:transparent;
+  }
+
+  /* The lit copy, and the element in flow — it is what gives .hero-line its
+     height, and the absolutely-placed halo stretches to the same box, so
+     the two copies wrap identically at every width by construction.
+     position+z-index only to sit above the halo; no offsets, so it does not
+     move. See the note above for why it has to say so out loud. */
+  .hero-ink{
+    display:block;
+    position:relative;
+    z-index:1;
+    color:var(--lit);        /* if the clip below is unavailable: simply lit */
+  }
+
+  /* The sweep. Nothing moves: the only thing animating is where, along the
+     x axis, the colour changes. No transform, no filter, no blur, and
+     nothing reading the scroll — which is also why it is not tempered under
+     prefers-reduced-motion further down.
+
+     The gradient is three times the width of the line box and runs
+     lit -> hot -> unlit. Sliding it across drags that boundary through the
+     glyphs, so everything the band has passed is lit and stays lit. Being
+     lit is not a state anything has to remember or re-assert; it is simply
+     what the left of this gradient is.
+
+     The 42/50/55 stops are measured against the 300% width, not chosen by
+     eye. The box shows exactly a third of the image, so the visible third
+     is entirely past 55% (all unlit) while --sweep is 84, and entirely
+     before 42% (all lit) by the time it reaches 12 — and between those two
+     the band crosses the box edge to edge with no dead time at either end.
+     The two sides of the band are deliberately uneven: 5% of image ahead of
+     the hot core against 8% behind it, so the light arrives a little harder
+     than it leaves and the glyphs settle into being lit rather than
+     switching.
+
+     Both lines carry this declaration and both read --sweep off the shared
+     wrapper, and both are full-width blocks, so their background boxes are
+     the same width: the band is one straight edge crossing the whole block
+     rather than two lines lighting at their own rates. */
+  @supports ((-webkit-background-clip:text) or (background-clip:text)){
+    .hero-ink{
+      background-image:linear-gradient(90deg,
+        var(--lit)     0%,
+        var(--lit)    42%,
+        var(--hot)    50%,
+        var(--unlit)  55%,
+        var(--unlit) 100%);
+      background-size:300% 100%;
+      background-repeat:no-repeat;
+      background-position:calc(var(--sweep) * 1%) 0;
+      -webkit-background-clip:text;
+      background-clip:text;
+      color:transparent;
+      -webkit-text-fill-color:transparent;
+    }
   }
 
   .hero-l1{
@@ -134,7 +243,6 @@
     font-size:4.6vw;
     line-height:1.1;
     letter-spacing:.006em;
-    color:#b08d57;                                  /* bronze, after the statues */
   }
   /* The largest of the three — line 1 introduces it, this is the statement.
      Margins are in em so the gaps grow with the type they separate. */
@@ -145,11 +253,13 @@
     font-size:4.9vw;
     line-height:1.15;
     letter-spacing:.004em;
-    color:#dde1e6;
   }
 
   /* fit-content so the RTL line still starts flush with the English ones:
-     a full-width rtl block would push its text to the far right. */
+     a full-width rtl block would push its text to the far right. It is
+     faded in by the script as the band leaves the English, and rests
+     visible here so that — as with --sweep — the state the stylesheet
+     declares is the finished one. */
   .hero-arrow{
     width:fit-content;
     max-width:100%;
@@ -161,6 +271,20 @@
     letter-spacing:.01em;
     color:rgba(200,160,74,.72);                     /* muted #c8a04a */
   }
+
+  /* While the reveal plays, the page is pinned. This stops a new pan
+     gesture from starting at all; the script's preventDefault handlers stop
+     one already under way, and re-writing the scroll position stops the
+     momentum that neither of those can reach. Two and a bit seconds, once
+     per page load — the class is added and removed by the script, and has
+     a fuse on it there.
+
+     pinch-zoom rather than none: what is being held is the page's position
+     in the track, and somebody enlarging the type is not moving it. The
+     script's touchmove handler lets a second finger through for the same
+     reason. */
+  html.hero-locked,
+  html.hero-locked *{ touch-action:pinch-zoom; }
 
   /* Phones run the reference scale itself: 8.8vw gives line 1 the 5.5vw
      cap-height, line 2 is 9vw and breaks of its own accord after "dreams",
@@ -259,13 +383,13 @@
 
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
-    /* The type-on is deliberately NOT reduced here. It cannot be relied on
-       that a visitor has the setting off, and the type-on is the only thing
-       announcing the hero, so it has to read the same either way. The motion
-       it asks for is small and brief — each letter rises .35em over half a
-       second, once, with no parallax, no zoom, no spin, and nothing that
-       tracks the scroll — which is the low-risk end of what this setting
-       exists to temper. */
+    /* The reveal is deliberately NOT reduced here, and this time there is
+       nothing in it to reduce: the sweep moves no pixels. It is a colour
+       boundary travelling along the x axis and an opacity fade on the
+       Hebrew line — no transform, no parallax, no zoom, and nothing that
+       tracks the scroll. That is not the class of motion this setting
+       exists to temper, and the reveal is the only thing announcing the
+       hero, so it has to read the same either way. */
   }
 </style>
 </head>
@@ -277,15 +401,21 @@
 <div id="hero">
   <h1 class="hero-sr">Welcome to Netora</h1>
   <p class="hero-sr">Here we turn dreams into reality</p>
-  <p class="hero-sr" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</p>
+  <p class="hero-sr" lang="he" dir="rtl">לצפייה בעבודות שלנו ↓</p>
 
-  <!-- Plain text on purpose. SplitText slices it into word and letter spans
-       at run time, once the webfonts are in, and the type-on walks the
-       letters in reading order — line 1, then line 2, then the Hebrew. -->
+  <!-- Each English line is two stacked layers: the ink span, which carries
+       the gradient the sweep slides across, and a ::before drawn from
+       data-text, which carries the shadows and nothing else. Both are
+       static text — there is no per-letter splitting anywhere in this any
+       more, and so nothing that can be left half-written. -->
   <div id="hero-type" aria-hidden="true">
-    <div class="hero-l1">Welcome to Netora</div>
-    <div class="hero-l2">Here we turn dreams into reality</div>
-    <div class="hero-arrow" lang="he" dir="rtl">↓ לצפייה בעבודות שלנו</div>
+    <div class="hero-line hero-l1" data-text="Welcome to Netora">
+      <span class="hero-ink">Welcome to Netora</span>
+    </div>
+    <div class="hero-line hero-l2" data-text="Here we turn dreams into reality">
+      <span class="hero-ink">Here we turn dreams into reality</span>
+    </div>
+    <div class="hero-arrow" lang="he" dir="rtl">לצפייה בעבודות שלנו ↓</div>
   </div>
 </div>
 
@@ -296,48 +426,41 @@
 <img id="treasure" src="images/treasure-room.jpg" alt="" aria-hidden="true"
      decoding="async" fetchpriority="low">
 
-<!-- GSAP 3.15.0 + SplitText, vendored (dist files from the gsap npm
-     package, GreenSock standard no-charge license). Local rather than a
-     CDN so the type-on has exactly one way to fail — the same way the
-     rest of the page fails — and one version, pinned by the file. -->
+<!-- GSAP 3.15.0, vendored (dist file from the gsap npm package, GreenSock
+     standard no-charge license). Local rather than a CDN so the reveal has
+     exactly one way to fail — the same way the rest of the page fails — and
+     one version, pinned by the file. SplitText went with the type-on it
+     drove: the sweep animates one number, not one span per letter. -->
 <script src="vendor/gsap/gsap.min.js"></script>
-<script src="vendor/gsap/SplitText.min.js"></script>
 
 <script>
-/* The hero type-on is played, not scrubbed.
+/* The hero reveal is played once, on its own clock — and the page is held
+   still while it plays.
 
-   The reveal this replaces wrote opacity, transform and blur onto every
-   word on every paint, straight from the scroll position. That contract —
-   state as a pure function of position — quietly depended on the position
-   being sampled at rest, and iOS WebKit does not promise that: scroll
-   events are coalesced during a momentum fling, and the last one delivered
-   can land while the page is still moving. Words were left half-written,
-   blurred, with no further event ever coming to finish them.
+   The reveal this replaces was scrubbed: it wrote opacity, transform and
+   blur onto every word on every paint, straight from the scroll position.
+   That contract — state as a pure function of position — quietly depended
+   on the position being sampled at rest, and iOS WebKit does not promise
+   that: scroll events are coalesced during a momentum fling, and the last
+   one delivered can land while the page is still moving. Words were left
+   half-written, blurred, with no further event ever coming to finish them.
 
-   So position is no longer something the text is a function of; it is read
+   So position is no longer something the text is a function of. It is read
    as one bit — has the scroll arrived at the rotunda, or left it — and the
-   animation between those two states runs once per arrival on GSAP's own
-   clock, start to finish. A missed or early scroll sample can at worst flip
-   that bit a frame late, and the type-on then still plays whole. Scrolling
-   back up does not run anything backwards: leaving hides the block and
-   rewinds the timeline while nobody can see it, and the next arrival types
-   the sentence on again from nothing.
+   reveal between those two states runs start to finish on GSAP's clock. A
+   missed or early scroll sample can at worst flip that bit a frame late,
+   and the sweep then still plays whole.
 
-   Hiding is atomic by construction. The letters are never written on the
-   way out — one autoAlpha write on #hero-type, a single property on a
-   single element, takes the whole block off screen whatever inline state
-   the letter spans are in. There is no per-letter cleanup to be interrupted
-   mid-way, which is the residue class of bug this exists to end.
+   It plays exactly once per page load. Coming back up the track runs
+   nothing backwards and re-arms nothing: leaving hides the block, arriving
+   again shows it, already lit. There is no second reveal to be caught
+   half-way through — the residue class of bug this exists to end — and no
+   second pin.
 
-   Order of operations, per the SplitText manual: fonts first
-   (document.fonts.ready), split second, animate third. Splitting against
-   the fallback font measures the wrong glyphs and the pieces keep those
-   positions — a known root cause of mis-set type — so the split is gated on
-   the fonts even though autoSplit would also catch a late-landing font.
-   autoSplit stays on as the safety net, and because the split is
-   words+chars only — no absolutely-positioned lines — the spans wrap by
-   ordinary line-breaking, so every viewport width, and the 768px regime
-   change in the stylesheet, lays out right without any re-measuring. */
+   And because a fast scroller would otherwise fly straight past the
+   rotunda, the arrival takes the scroll with it: the page is pinned for the
+   length of the sweep plus a short hold, then let go. That pin is taken
+   once, never re-armed, and has a fuse on it — see hold(). */
 (function () {
   'use strict';
 
@@ -350,111 +473,216 @@
   var ENTER_AT   = 1;
   var EXIT_BELOW = 1 - 20 / 750;
 
-  var wrap  = document.getElementById('hero-type');
+  // The pin is only ever taken while the rotunda is the picture on screen.
+  // The treasure room starts dissolving in at 1030vh of travel; a first
+  // arrival below this — a restored scroll position, say — gets the
+  // finished text with no sweep and no pin, rather than the page held
+  // still on somebody else's cross-fade.
+  var LOCK_BELOW = 1010 / 750;
 
-  var lastP = 0;       // latest position the scrubber handed over
-  var shown = false;   // the one latched bit: is the block on screen?
-  var tl    = null;    // current type-on; rebuilt whenever SplitText re-splits
+  var SWEEP   = 1.05;   // the band crosses both English lines
+  var ARROW   = 0.45;   // the Hebrew line fades in behind it — 1.5s in total
+  var HOLD    = 0.70;   // lit, still pinned, so it is read before it can move
+  var FUSE_MS = 4000;   // a pin still standing this long lets go by itself
+
+  // The two ends of the band's travel, as background-position percentages.
+  // See the stylesheet for why they are 84 and 12 rather than 100 and 0.
+  var DARK = 84;
+  var LIT  = 12;
+
+  var wrap  = document.getElementById('hero-type');
+  var arrow = wrap && wrap.querySelector('.hero-arrow');
+
+  var lastP  = 0;       // latest position the scrubber handed over
+  var shown  = false;   // is the block on screen?
+  var played = false;   // the sweep has run — it does not run a second time
+  var tl     = null;    // built below; settle() is inert until it exists
 
   // The scrubber captures window.NetoraHero synchronously when it starts,
-  // so the contract object has to exist now — before the fonts, before the
-  // split. Until the timeline exists, at() only records where the page is;
-  // the split then settles up, so a visitor already standing in the rotunda
-  // when it lands still gets the type-on.
+  // so the contract object has to exist now. Until the timeline is built,
+  // at() only records where the page is.
   window.NetoraHero = {
-    at: function (p) {
-      lastP = p;
-      settle();
-    }
+    at: function (p) { lastP = p; settle(); }
   };
 
-  if (!wrap || !window.gsap || !window.SplitText) return;
-  gsap.registerPlugin(SplitText);
+  if (!wrap || !arrow || !window.gsap) return;
+
+  /* ---------- the reveal ---------- */
+
+  // GSAP tweens this one plain number and writeBand() turns it into the
+  // gradient's position. Going through an object rather than tweening the
+  // custom property directly keeps the single value the animation owns in
+  // plain sight, and keeps the write to one setProperty of one number.
+  var band = { at: DARK };
+
+  function writeBand() {
+    wrap.style.setProperty('--sweep', String(Math.round(band.at * 100) / 100));
+  }
+
+  // Unlit, and the Hebrew line down, before the block can ever be seen:
+  // #hero-type is hidden by the stylesheet until settle() shows it.
+  writeBand();
+  gsap.set(arrow, { autoAlpha: 0 });
+
+  tl = gsap.timeline({
+    paused: true,
+    onComplete: function () {
+      lit();
+      // The hold is deliberately outside the timeline: what it delays is
+      // letting go of the page, not anything on screen.
+      gsap.delayedCall(HOLD, release);
+    }
+  });
+
+  tl.to(band, {
+      at: LIT,
+      duration: SWEEP,
+      ease: 'power1.inOut',
+      onUpdate: writeBand
+    }, 0)
+    .to(arrow, {
+      autoAlpha: 1,
+      duration: ARROW,
+      ease: 'power1.out'
+    }, SWEEP);
+
+  // The finished state is no inline state at all: the band and the Hebrew
+  // line drop back onto the stylesheet, which declares exactly this — lit,
+  // and visible — for the long dwell that follows. Also the whole of the
+  // reveal for a page that arrives past the window it belongs in.
+  function lit() {
+    tl.progress(1, true);
+    wrap.style.removeProperty('--sweep');
+    gsap.set(arrow, { clearProps: 'opacity,visibility' });
+  }
+
+  /* ---------- the pin ---------- */
+
+  var locked = false;
+  var lockY  = 0;      // where the pin holds the page, in pixels
+  var lockAt = 0;      // ... and the same place as a fraction of the track
+  var fuse   = 0;
+
+  // space, page up/down, end, home, arrow up/down
+  var KEYS = { 32:1, 33:1, 34:1, 35:1, 36:1, 38:1, 40:1 };
+
+  // Zooming is left alone — a two-finger pinch, or ctrl+wheel. The pin is
+  // here to stop the page being scrolled past the reveal, not to stop
+  // somebody making the words bigger while they read them.
+  function swallow(e) {
+    if (e.ctrlKey || (e.touches && e.touches.length > 1)) return;
+    e.preventDefault();
+  }
+  function swallowKey(e) { if (KEYS[e.keyCode]) e.preventDefault(); }
+
+  // Momentum already in flight cannot be preventDefault()ed — the finger is
+  // off the glass and no more touchmoves are coming — so the position is
+  // written back as well. The scrubber's own scroll listener sees these
+  // writes and repaints the same held frame, which is a no-op for it, and
+  // the hero reads the same p it already latched on.
+  //
+  // A pixel of tolerance, not equality. scrollY is a double and the value a
+  // scrollTo actually lands on can be snapped to the device pixel grid, so
+  // an exact compare can be false forever — and this runs from the scroll
+  // event its own write raises. A pixel is far below anything a visitor can
+  // see and far above any rounding.
+  function repin() {
+    if (locked && Math.abs(window.scrollY - lockY) > 1) window.scrollTo(0, lockY);
+  }
+
+  // The track is 1230vh, so its length in pixels is a function of the
+  // viewport: a rotation re-resolves the whole thing, and the browser clamps
+  // the old absolute offset into the new range — on a phone that lands at
+  // the very bottom of the site, under a fully opaque treasure room, with
+  // the reveal playing where nobody can see it. So what the pin remembers is
+  // where it is in the TRACK, and the pixel offset is re-derived from that
+  // whenever the track changes. Applied at once rather than waiting for a
+  // scroll event, since the resize itself is the movement.
+  function trackMax() {
+    return document.documentElement.scrollHeight - window.innerHeight;
+  }
+
+  function restake() {
+    var max = trackMax();
+    lockY = max > 0 ? lockAt * max : 0;
+    repin();
+  }
+
+  function hold() {
+    if (locked) return;
+    locked = true;
+    lockY = window.scrollY;
+    lockAt = trackMax() > 0 ? lockY / trackMax() : 0;
+    document.documentElement.classList.add('hero-locked');
+    window.addEventListener('touchmove', swallow,    { passive: false });
+    window.addEventListener('wheel',     swallow,    { passive: false });
+    window.addEventListener('keydown',   swallowKey, false);
+    window.addEventListener('scroll',    repin,      { passive: true });
+    window.addEventListener('resize',            restake);
+    window.addEventListener('orientationchange', restake);
+    // A page the visitor cannot scroll is the worst thing this file could
+    // leave behind, so letting go does not depend on the timeline getting
+    // there: if the clock stalls — a backgrounded tab, a dropped frame
+    // chain — this releases anyway.
+    fuse = setTimeout(release, FUSE_MS);
+  }
+
+  function release() {
+    if (!locked) return;
+    locked = false;
+    clearTimeout(fuse);
+    document.documentElement.classList.remove('hero-locked');
+    window.removeEventListener('touchmove', swallow);
+    window.removeEventListener('wheel',     swallow);
+    window.removeEventListener('keydown',   swallowKey);
+    window.removeEventListener('scroll',    repin);
+    window.removeEventListener('resize',            restake);
+    window.removeEventListener('orientationchange', restake);
+    // The exit branch has been declining to act for as long as this was up.
+    // Ask it once now, rather than leaving the block's fate to whenever the
+    // next paint happens to come — the scrubber's rAF chain retires 700ms
+    // after the last movement, and a pinned page has not moved.
+    settle();
+  }
+
+  /* ---------- arrival and departure ---------- */
 
   function settle() {
-    if (!shown && tl && lastP >= ENTER_AT) {
+    if (!tl) return;
+
+    if (!shown && lastP >= ENTER_AT) {
       shown = true;
       gsap.killTweensOf(wrap);            // a hide still fading is cancelled, not raced
       gsap.set(wrap, { autoAlpha: 1 });
-      // play(0) renders time zero — every letter at its hidden start —
-      // in the same JS turn as the un-hide above, so there is no frame in
-      // between for the finished sentence to flash through.
-      tl.play(0);
-    } else if (shown && lastP < EXIT_BELOW) {
+
+      if (!played) {
+        played = true;                    // latched before either branch: once, whatever happens
+        if (lastP < LOCK_BELOW) {
+          hold();
+          // play(0) renders time zero — the block fully unlit — in the same
+          // JS turn as the un-hide above, so there is no frame in between
+          // for the finished text to flash through.
+          tl.play(0);
+        } else {
+          lit();
+        }
+      }
+      // Already played: the block comes back exactly as it was left — lit.
+      // Nothing replays, nothing re-pins.
+    } else if (shown && !locked && lastP < EXIT_BELOW) {
+      // Not while pinned. p is scrollY over a track measured in vh, so a
+      // viewport that changes under the pin — a rotation — can move p
+      // without the page having moved at all, and the one thing that must
+      // not happen during the reveal is the reveal being hidden.
       shown = false;
-      if (tl) tl.pause();                 // freeze a type-on caught mid-flight
       gsap.to(wrap, {
         autoAlpha: 0,
         duration: 0.18,
         ease: 'power1.out',
-        overwrite: 'auto',
-        // Rewound only once invisible. If a re-arrival kills this fade
-        // first, its play(0) does the rewinding instead.
-        onComplete: function () { if (tl) tl.pause(0); }
+        overwrite: 'auto'
       });
     }
   }
-
-  // One tween per line, letters staggered in reading order — which for the
-  // Hebrew line IS right-to-left: the spans sit in logical order and the
-  // rtl context lays them out, and Hebrew has no joining forms, so
-  // per-letter spans render the same glyphs the plain text did. Rise and
-  // fade only, no filter: a few dozen blurred elements is exactly the
-  // compositing load mobile WebKit is worst at, and it is what the old
-  // reveal kept leaving on screen.
-  function typeOn(dur, stag) {
-    return {
-      autoAlpha: 0,
-      y: '0.35em',
-      duration: dur,
-      ease: 'power2.out',
-      stagger: stag,
-      immediateRender: true    // letters sit at their hidden start from build time
-    };
-  }
-
-  function build(self) {
-    var line = function (sel) {
-      return self.chars.filter(function (c) { return c.closest(sel); });
-    };
-
-    var t = gsap.timeline({
-      paused: true,
-      onComplete: function () {
-        // The finished state is no inline state at all: clearing the
-        // animated properties drops the letters back onto the stylesheet —
-        // no transforms, no promoted surfaces, text rendered exactly as
-        // specified — for the long dwell the sentence sits through.
-        gsap.set(self.chars, { clearProps: 'transform,opacity,visibility' });
-      }
-    });
-
-    t.from(line('.hero-l1'),    typeOn(0.55, 0.045), 0)
-     .from(line('.hero-l2'),    typeOn(0.55, 0.030), '>-0.30')
-     .from(line('.hero-arrow'), typeOn(0.45, 0.025), '>-0.20');
-
-    return t;
-  }
-
-  // Fonts first, split second, animate third — see the header note.
-  document.fonts.ready.then(function () {
-    SplitText.create(['.hero-l1', '.hero-l2', '.hero-arrow'], {
-      type: 'words,chars',     // words so wrapping stays word-wise; chars carry the type-on
-      aria: 'none',            // the .hero-sr copy is the accessible text
-      autoSplit: true,
-      onSplit: function (self) {
-        tl = build(self);
-        if (shown) {
-          // A re-split mid-dwell (a late font) rebuilds the spans bare; the
-          // sentence is supposed to be up, so put it up whole, not re-typed.
-          tl.progress(1);
-        } else {
-          settle();            // the page may already be standing in the rotunda
-        }
-        return tl;             // handed back so a re-split reverts it first
-      }
-    });
-  });
 })();
 </script>
 
@@ -474,12 +702,12 @@
   /* ---- the two knobs, both in vh of scroll travel ----
 
      Travel is measured from the top of the page in the same units as the
-     ledger in the stylesheet: the frames finish at 750vh, the last word
-     lands at 950vh, the hero rests until 1030vh, and the track ends at
-     1130vh (1230vh of body, less the 100vh viewport that never scrolls
-     past). So the fade below starts the moment the finished hero has had
-     its full rest and closes 20vh short of the bottom, leaving the room
-     held at full opacity for the landing.
+     ledger in the stylesheet: the frames finish at 750vh, the reveal plays
+     itself out on its own clock from there, the hero rests until 1030vh,
+     and the track ends at 1130vh (1230vh of body, less the 100vh viewport
+     that never scrolls past). So the fade below starts the moment the
+     finished hero has had its full rest and closes 20vh short of the
+     bottom, leaving the room held at full opacity for the landing.
 
      These two are the only numbers to touch. The frames and the words are
      anchored to their own and do not read these. */
