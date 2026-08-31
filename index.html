@@ -410,13 +410,27 @@
        the padding, and nothing here overrides them. What these two are is
        the room the clamp below has to leave for it — half a plate plus the
        margin it keeps from the screen edge — so they are the one thing to
-       re-measure if the label or the padding changes. The plate is 105x67,
-       so 61 is half of it and 8px of air, and 42 the same vertically. */
-    --room-cta-guard-x:  61px;
-    --room-cta-guard-y:  42px;
+       re-measure if the label or the padding changes. The plate is 64x52,
+       so 40 is half of it and 8px of air, and 34 the same vertically.
+
+       The width is what a tall phone can afford: the clamp holds a plate
+       this size 14px inside its panel's centre, where the 105px plate the
+       type was first set at stood 35px in. */
+    --room-cta-guard-x:  40px;
+    --room-cta-guard-y:  34px;
 
     /* How far outside the plate's edge each side rule stands. */
     --room-cta-rule-gap: 2px;
+
+    /* The corner the clip takes off each end of the cartouche. Scaled with
+       the plate — an eighth of its height, as it was at the larger size. */
+    --room-cta-cut:      6px;
+
+    /* The halo. It is on the slot rather than the plate because the plate's
+       clip cuts away everything it paints outside its own edge, this shadow
+       included: measured, a strip above a hovered plate was the same
+       brightness as a resting one until the glow moved out here. */
+    --room-cta-glow:     0 0 18px rgba(199,162,74,.16);
 
     --room-ar: 0.562799;       /* 941/1672 — the still's own aspect ratio */
   }
@@ -522,8 +536,12 @@
        Here rather than on the plate so the plaque and its rules come up as
        one thing. 0 until the script writes, so a page where nothing runs
        shows no buttons over no room, and deliberately not transitioned:
-       the fade is the scroll position, not a reaction to it. */
+       the fade is the scroll position, not a reaction to it — which is why
+       the transition below names one property rather than all. */
     opacity:var(--room-cta-fade, 0);
+
+    /* The halo lands here when the plate is reached; see the lit rules. */
+    transition:box-shadow .6s;
   }
 
   .room-cta-slot--left { --room-cta-x:var(--room-cta-left-x);  --room-cta-y:var(--room-cta-left-y); }
@@ -533,9 +551,11 @@
      takes 9px off each corner, which is what makes it a cartouche and not a
      rectangle — and, because a clip cuts everything the element paints, is
      also why the two rules below are siblings rather than pseudo-elements
-     of this. The inset shadow is the depth: a dark one down from the top
-     edge for the shadow a carved edge casts into itself, and a thin warm
-     one up from the bottom for the light that catches the lower lip.
+     of this — and why the halo it takes on when it is reached is on the
+     slot too. The inset shadow is the depth, and stays here: a dark one
+     down from the top edge for the shadow a carved edge casts into itself,
+     and a thin warm one up from the bottom for the light that catches the
+     lower lip.
 
      display:flex is structural rather than styling — an inline <a> would
      not take the vertical padding — and the label is a block inside it so
@@ -547,15 +567,23 @@
 
     font-family:"Frank Ruhl Libre", "Cormorant Garamond", Georgia, serif;
     font-weight:500;
-    font-size:15px;
+    font-size:11px;
     letter-spacing:.05em;
     line-height:1.18;
     direction:rtl;
     color:#d3b571;
-    padding:15px 30px;
+    padding:12px 15px;
     background:rgba(4,13,34,.5);
     border:1px solid rgba(199,162,74,.34);
-    clip-path:polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+    clip-path:polygon(
+      var(--room-cta-cut) 0,
+      calc(100% - var(--room-cta-cut)) 0,
+      100% var(--room-cta-cut),
+      100% calc(100% - var(--room-cta-cut)),
+      calc(100% - var(--room-cta-cut)) 100%,
+      var(--room-cta-cut) 100%,
+      0 calc(100% - var(--room-cta-cut)),
+      0 var(--room-cta-cut));
     box-shadow:
       inset 0 2px 6px rgba(0,0,0,.5),
       inset 0 -1px 1px rgba(214,182,110,.1);
@@ -617,11 +645,12 @@
     background:rgba(7,18,44,.55);
     box-shadow:
       inset 0 2px 6px rgba(0,0,0,.42),
-      inset 0 -1px 1px rgba(216,186,116,.24),
-      0 0 18px rgba(199,162,74,.16);
+      inset 0 -1px 1px rgba(216,186,116,.24);
   }
   .room-cta-btn:active ~ .room-cta-rule,
   .room-cta-btn:focus-visible ~ .room-cta-rule{ height:64%; }
+  .room-cta-slot:has(.room-cta-btn:active),
+  .room-cta-slot:has(.room-cta-btn:focus-visible){ box-shadow:var(--room-cta-glow); }
 
   @media (hover:hover){
     .room-cta-btn:hover{
@@ -630,10 +659,10 @@
       background:rgba(7,18,44,.55);
       box-shadow:
         inset 0 2px 6px rgba(0,0,0,.42),
-        inset 0 -1px 1px rgba(216,186,116,.24),
-        0 0 18px rgba(199,162,74,.16);
+        inset 0 -1px 1px rgba(216,186,116,.24);
     }
     .room-cta-btn:hover ~ .room-cta-rule{ height:64%; }
+    .room-cta-slot:has(.room-cta-btn:hover){ box-shadow:var(--room-cta-glow); }
   }
 
   @media (prefers-reduced-motion:reduce){
