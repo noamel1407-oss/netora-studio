@@ -385,6 +385,191 @@
     will-change:opacity;
   }
 
+  /* ---------- the two doors out of the treasure room ---------- */
+
+  /* ---- the nudge knobs ----
+
+     Where each plate sits, as a percentage of the treasure-room STILL:
+     0% is its left/top edge and 100% its right/bottom, whatever the screen
+     happens to be cropping. Read off the picture rather than chosen — the
+     left panel's blank blue field runs 7-21.5% across and 33-54% down, the
+     right panel's 77.5-92% across and the same band down — so each pair
+     below is simply the middle of one panel.
+
+     These four numbers are the only ones to touch to move a button. */
+  :root{
+    --room-cta-left-x:  14.2%;
+    --room-cta-left-y:  44%;
+    --room-cta-right-x: 84.7%;
+    --room-cta-right-y: 44%;
+
+    /* The plate itself. Width and height are given rather than left to the
+       text because the clamp below has to know half of each: on a narrow
+       screen cover crops the outer edge of both panels away, and a button
+       still anchored to the middle of one would hang off the screen with
+       it. The clamp slides it back on, and needs the size to do that. */
+    --room-cta-w:    min(8.75rem, 38vw);   /* the vw arm is for 320px phones,
+                                              where two plates and their
+                                              margins have to share the width */
+    --room-cta-h:    2.75rem;   /* 44px — the smallest comfortable tap */
+    --room-cta-edge: 1rem;      /* ... and the closest it may come to the edge */
+
+    --room-ar: 0.562799;        /* 941/1672 — the still's own aspect ratio */
+  }
+
+  /* The layer the two plates live on: the same box as #treasure, laid over
+     it. It holds no state of its own. The script under the cross-fade
+     writes the room's own opacity into --room-cta-fade and turns data-live
+     on and off with it, so the buttons arrive with the room, leave with it,
+     and are tappable for exactly as long as it is on screen — including
+     the whole of the dissolve, where the picture is up but not yet opaque.
+
+     The fade is carried on a custom property the buttons read rather than
+     as opacity on this element, because an ancestor at less than full
+     opacity is a backdrop root: it would cut the plates' backdrop-filter
+     off from the room behind them, and the glass would only frost once the
+     dissolve had finished. */
+  #room-cta{
+    position:fixed;
+    /* Including the one pixel of overshoot, so the cover crop worked out
+       below is the crop the picture is actually showing. */
+    inset:-1px;
+    z-index:4;
+    width:calc(100% + 2px);
+    height:calc(100% + 2px);
+
+    /* The layer itself never takes a tap — only the two buttons do, and
+       only while they are live. The rest of the room stays scrollable. */
+    pointer-events:none;
+    visibility:hidden;
+
+    /* This box's own size, in units the children can do arithmetic with.
+       Container units rather than vw/vh so they measure THIS element: on a
+       phone with a retracting URL bar the viewport and the fixed layer are
+       not the same box, and it is this one the picture fills. The vw/vh
+       pair is the fallback where container units are unavailable — off by
+       whatever the URL bar is worth, which is a nudge, not a break. */
+    --room-vw:100vw;
+    --room-vh:100vh;
+  }
+  @supports (width:1cqw){
+    #room-cta{
+      container-type:size;
+      --room-vw:100cqw;
+      --room-vh:100cqh;
+    }
+  }
+  #room-cta[data-live]{ visibility:visible; }
+  #room-cta[data-live] .room-cta-btn{ pointer-events:auto; }
+
+  /* The picture's own box: exactly the rectangle object-fit:cover paints
+     the still into, overflow and all. max() picks the side that has to
+     overflow in order to cover, and the centring does the rest — the same
+     framing rule the image and blit() both follow. So a percentage inside
+     this box is a percentage of the STILL at every viewport ratio, which
+     is what keeps a plate on its panel as the crop changes under it. */
+  .room-cta-fit{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:max(var(--room-vw), calc(var(--room-vh) * var(--room-ar)));
+    height:max(var(--room-vh), calc(var(--room-vw) / var(--room-ar)));
+  }
+
+  /* A plate of glass with the light behind it: the blur is what makes it
+     read as glass, the two-stop wash is the sheen down it, and the hairline
+     is the same gold as everything else in the room. Deliberately thin —
+     the panel behind has to stay legible through it.
+
+     Position is the panel coordinate, clamped to the screen. 50% is the
+     middle of the picture and --room-vw/2 is half the screen, so
+     `50% - var(--room-vw)/2` is exactly where the left edge of the screen
+     falls on the picture; the clamp keeps the plate that far in, plus its
+     own half-width, plus the margin and any notch. On anything wider than
+     a phone the clamp is slack and the anchor is used as given. */
+  .room-cta-btn{
+    position:absolute;
+    left:clamp(
+      calc(50% - var(--room-vw) / 2 + var(--room-cta-w) / 2 + var(--room-cta-edge) + env(safe-area-inset-left, 0px)),
+      var(--room-cta-x),
+      calc(50% + var(--room-vw) / 2 - var(--room-cta-w) / 2 - var(--room-cta-edge) - env(safe-area-inset-right, 0px)));
+    top:clamp(
+      calc(50% - var(--room-vh) / 2 + var(--room-cta-h) / 2 + var(--room-cta-edge) + env(safe-area-inset-top, 0px)),
+      var(--room-cta-y),
+      calc(50% + var(--room-vh) / 2 - var(--room-cta-h) / 2 - var(--room-cta-edge) - env(safe-area-inset-bottom, 0px)));
+    transform:translate(-50%,-50%);
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:var(--room-cta-w);
+    height:var(--room-cta-h);
+
+    /* Written by the script, from the room's opacity. 0 until then, so a
+       page where nothing runs shows no buttons over no room. */
+    opacity:var(--room-cta-fade, 0);
+
+    font-family:'Heebo', 'Arial Hebrew', Arial, sans-serif;
+    font-weight:500;
+    font-size:.84rem;
+    line-height:1;
+    letter-spacing:.02em;
+    white-space:nowrap;
+    text-decoration:none;
+    color:#f6ecd8;
+    text-shadow:0 1px 3px rgba(2,6,16,.55);
+
+    border:1px solid rgba(236,196,122,.42);
+    border-radius:5px;
+    background:linear-gradient(160deg, rgba(255,246,225,.13), rgba(120,92,44,.10));
+    -webkit-backdrop-filter:blur(7px) saturate(125%);
+    backdrop-filter:blur(7px) saturate(125%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,244,214,.20),      /* the lit top edge */
+      inset 0 -1px 0 rgba(2,6,16,.22),
+      0 4px 14px rgba(2,6,16,.30);              /* it stands off the wall */
+
+    -webkit-tap-highlight-color:transparent;
+    /* Opacity is deliberately not in this list: it is the scroll position,
+       not a reaction to it. */
+    transition:
+      border-color .25s ease,
+      background   .25s ease,
+      box-shadow   .25s ease,
+      transform    .12s ease;
+  }
+
+  .room-cta-btn--left { --room-cta-x:var(--room-cta-left-x);  --room-cta-y:var(--room-cta-left-y); }
+  .room-cta-btn--right{ --room-cta-x:var(--room-cta-right-x); --room-cta-y:var(--room-cta-right-y); }
+
+  /* The glow, for pointers that can hover. Touch gets the press below
+     instead — on a phone :hover sticks after the finger has gone. */
+  @media (hover:hover){
+    .room-cta-btn:hover{
+      border-color:rgba(236,196,122,.78);
+      background:linear-gradient(160deg, rgba(255,246,225,.20), rgba(140,106,50,.14));
+      box-shadow:
+        inset 0 1px 0 rgba(255,244,214,.30),
+        0 0 22px rgba(200,160,74,.34),          /* the soft glow */
+        0 6px 18px rgba(2,6,16,.34);
+    }
+  }
+
+  .room-cta-btn:active{
+    border-color:rgba(236,196,122,.85);
+    box-shadow:
+      inset 0 1px 0 rgba(255,244,214,.26),
+      0 0 16px rgba(200,160,74,.30),
+      0 2px 8px rgba(2,6,16,.30);
+    transform:translate(-50%,-50%) scale(.97);
+  }
+
+  .room-cta-btn:focus-visible{
+    outline:1px solid rgba(236,196,122,.9);
+    outline-offset:3px;
+  }
+
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
     /* The reveal is deliberately NOT reduced here, and this time there is
@@ -429,6 +614,20 @@
      until 1030vh of scrolling have gone by. -->
 <img id="treasure" src="images/treasure-room.jpg" alt="" aria-hidden="true"
      decoding="async" fetchpriority="low">
+
+<!-- The two ways out of the room, laid over it and nothing else: one
+     plate on each of the side panels. Where they sit is entirely in the
+     stylesheet above; when they are live is entirely in the module below
+     the cross-fade. Placeholder destinations for now — the two hrefs are
+     the only things here that need swapping for the real links. -->
+<div id="room-cta">
+  <div class="room-cta-fit">
+    <a class="room-cta-btn room-cta-btn--left" lang="he" dir="rtl"
+       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה באתר</a>
+    <a class="room-cta-btn room-cta-btn--right" lang="he" dir="rtl"
+       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה באתר</a>
+  </div>
+</div>
 
 <!-- GSAP 3.15.0, vendored (dist file from the gsap npm package, GreenSock
      standard no-charge license). Local rather than a CDN so the reveal has
@@ -794,6 +993,72 @@
   // p comes straight from the scrubber and is not clamped — 1.0 is the frame
   // scrub finishing, and the fade lives well above that.
   window.NetoraTreasure = { at: write };
+})();
+</script>
+
+<script>
+/* When the two glass plates are live.
+
+   The buttons have no scroll state of their own, and no second copy of the
+   fade's arithmetic. The room's opacity IS the state: it is zero for as
+   long as the room is not on screen, it leaves zero the moment the dissolve
+   starts, and it comes back to zero if the page is scrolled back up out of
+   it. So this reads that one number after every write and hands it on —
+   into --room-cta-fade, which the plates use as their opacity, and into
+   data-live, which is what gives them their pointer events and takes them
+   out of the tab order again afterwards.
+
+   Reading it means the fade above keeps both of its knobs and stays the
+   only thing that knows where the cross-fade starts or how long it runs.
+   Move them and the buttons follow, because there is nothing here to move.
+
+   It decorates .at rather than being called by it, for the same reason: the
+   scrubber looks that property up on this object on every paint, so
+   wrapping it runs this immediately after every opacity the fade writes,
+   without the fade having been told the buttons exist. */
+(function () {
+  'use strict';
+
+  /* How far up the room has to be before the plates will take a tap. Zero
+     is "from the instant the dissolve starts", which is what the room asks
+     for: they are live across the whole of it, going down and coming back
+     up. Raise it — .25, say — to keep them inert until the picture is
+     properly there. It is the only number in this module. */
+  var LIVE_ABOVE = 0;
+
+  var room = document.getElementById('treasure');
+  var cta  = document.getElementById('room-cta');
+  var fade = window.NetoraTreasure;
+  if (!room || !cta || !fade) return;
+
+  var last = -1;                                  // last value passed on
+
+  function follow() {
+    // '' until the fade's first write, and a string after it.
+    var op = parseFloat(room.style.opacity);
+    if (!(op > 0)) op = 0;
+    if (op === last) return;
+    last = op;
+
+    cta.style.setProperty('--room-cta-fade', String(op));
+
+    // Live for as long as the room is on screen — the whole dissolve
+    // included, where the picture is up but still coming through.
+    if (op > LIVE_ABOVE) cta.setAttribute('data-live', '');
+    else cta.removeAttribute('data-live');
+  }
+
+  var at = fade.at;
+  fade.at = function (p) { at(p); follow(); };
+
+  // The still is fetched at low priority and can land after the page has
+  // stopped moving. The fade re-runs itself on its own load handler — added
+  // before this one, so it has already written by the time this reads — and
+  // the paint loop has retired by then, so nothing else would ask again.
+  room.addEventListener('load',  follow);
+  room.addEventListener('error', follow);
+
+  follow();
 })();
 </script>
 
