@@ -406,28 +406,17 @@
     --room-cta-right-x: 84.7%;
     --room-cta-right-y: 44%;
 
-    /* The plate, sized as one piece: everything below is in em of this, so
-       changing this one length scales the whole plaque and leaves its
-       proportions alone. It grows with the picture between a phone and a
-       big desktop and then stops.
+    /* The plate sizes itself: its width and height are the two lines plus
+       the padding, and nothing here overrides them. What these two are is
+       the room the clamp below has to leave for it — half a plate plus the
+       margin it keeps from the screen edge — so they are the one thing to
+       re-measure if the label or the padding changes. The plate is 105x67,
+       so 61 is half of it and 8px of air, and 42 the same vertically. */
+    --room-cta-guard-x:  61px;
+    --room-cta-guard-y:  42px;
 
-       The label is set on two lines — לצפייה over באתר — which is what
-       makes the plate a plaque rather than a bar: the widest line is a bit
-       over half the one-line label, so the plate is 64px across on a 1440
-       screen where the panel is 209px, and the blue around it does the
-       rest. Narrow matters on a phone as well as on the eye: cover crops
-       the panels there, and a plate this size is nearly the width of what
-       is left of one. */
-    --room-cta-fs:   clamp(11px, .78vw, 15px);
-    /* Both in em of the size above, and both chosen from the label rather
-       than picked: the long line is 3.9em wide and the two lines together
-       are 3em tall, so these leave a shade under .9em of air on all four
-       sides. Even spacing is what makes it read as a plaque rather than a
-       box with words jammed in it, and it is why the two are not equal —
-       the plate is a little wider than it is tall because the text is. */
-    --room-cta-w:    5.7em;
-    --room-cta-h:    4.8em;
-    --room-cta-edge: .5rem;    /* the closest it may come to the screen edge */
+    /* How far outside the plate's edge each side rule stands. */
+    --room-cta-rule-gap: 2px;
 
     --room-ar: 0.562799;       /* 941/1672 — the still's own aspect ratio */
   }
@@ -505,49 +494,73 @@
      each side, which is most of both panels, and the clamp is then the only
      thing keeping a plate that is wider than what is left of its panel from
      hanging off the glass. */
-  .room-cta-btn{
+  /* The slot: where the plaque goes, and the box its two side rules are
+     hung off. It carries everything positional — the panel anchor, the
+     screen-edge clamp and the fade — so that the plate inside it is nothing
+     but the design, and so that the rules can stand outside the plate's
+     own edge, which the clip-path below would otherwise cut off.
+
+     50% is the middle of the picture and --room-vw/2 is half the screen, so
+     `50% - var(--room-vw)/2` is exactly where the left edge of the screen
+     falls on the picture; the clamp keeps the slot that far in, plus the
+     guard. It is slack — the anchor is used exactly as given — wherever the
+     crop leaves the whole panel on screen. */
+  .room-cta-slot{
     position:absolute;
     left:clamp(
-      calc(50% - var(--room-vw) / 2 + var(--room-cta-w) / 2 + var(--room-cta-edge) + env(safe-area-inset-left, 0px)),
+      calc(50% - var(--room-vw) / 2 + var(--room-cta-guard-x) + env(safe-area-inset-left, 0px)),
       var(--room-cta-x),
-      calc(50% + var(--room-vw) / 2 - var(--room-cta-w) / 2 - var(--room-cta-edge) - env(safe-area-inset-right, 0px)));
+      calc(50% + var(--room-vw) / 2 - var(--room-cta-guard-x) - env(safe-area-inset-right, 0px)));
     top:clamp(
-      calc(50% - var(--room-vh) / 2 + var(--room-cta-h) / 2 + var(--room-cta-edge) + env(safe-area-inset-top, 0px)),
+      calc(50% - var(--room-vh) / 2 + var(--room-cta-guard-y) + env(safe-area-inset-top, 0px)),
       var(--room-cta-y),
-      calc(50% + var(--room-vh) / 2 - var(--room-cta-h) / 2 - var(--room-cta-edge) - env(safe-area-inset-bottom, 0px)));
+      calc(50% + var(--room-vh) / 2 - var(--room-cta-guard-y) - env(safe-area-inset-bottom, 0px)));
     transform:translate(-50%,-50%);
+    width:max-content;
 
+    /* The room's own opacity, written by the script under the cross-fade.
+       Here rather than on the plate so the plaque and its rules come up as
+       one thing. 0 until the script writes, so a page where nothing runs
+       shows no buttons over no room, and deliberately not transitioned:
+       the fade is the scroll position, not a reaction to it. */
+    opacity:var(--room-cta-fade, 0);
+  }
+
+  .room-cta-slot--left { --room-cta-x:var(--room-cta-left-x);  --room-cta-y:var(--room-cta-left-y); }
+  .room-cta-slot--right{ --room-cta-x:var(--room-cta-right-x); --room-cta-y:var(--room-cta-right-y); }
+
+  /* The plaque: sunk into the panel rather than laid on it. The clip-path
+     takes 9px off each corner, which is what makes it a cartouche and not a
+     rectangle — and, because a clip cuts everything the element paints, is
+     also why the two rules below are siblings rather than pseudo-elements
+     of this. The inset shadow is the depth: a dark one down from the top
+     edge for the shadow a carved edge casts into itself, and a thin warm
+     one up from the bottom for the light that catches the lower lip.
+
+     display:flex is structural rather than styling — an inline <a> would
+     not take the vertical padding — and the label is a block inside it so
+     the two lines centre on the plate's axis. */
+  .room-cta-btn{
     display:flex;
     align-items:center;
     justify-content:center;
-    width:var(--room-cta-w);
-    height:var(--room-cta-h);
-    /* The label breaks between its two words and both lines are centred on
-       the plate's axis. 1.5 rather than the face's own leading: the two
-       lines have to look placed, not wrapped. */
-    text-align:center;
-    line-height:1.5;
 
-    /* Written by the script, from the room's opacity. 0 until then, so a
-       page where nothing runs shows no buttons over no room. Deliberately
-       not in the transition below: the fade is the scroll position, not a
-       reaction to it. */
-    opacity:var(--room-cta-fade, 0);
-
-    font-family:"Cormorant Garamond", "Frank Ruhl Libre", Georgia, serif;
-    font-size:var(--room-cta-fs);
+    font-family:"Frank Ruhl Libre", "Cormorant Garamond", Georgia, serif;
     font-weight:500;
-    letter-spacing:.18em;
+    font-size:15px;
+    letter-spacing:.05em;
+    line-height:1.18;
     direction:rtl;
-    cursor:pointer;
-    color:#d9bd77;
-    border:1px solid rgba(199,162,74,.45);
-    border-radius:1px;
-    background:linear-gradient(177deg, rgba(214,182,110,.09), rgba(199,162,74,.015) 55%, rgba(0,0,0,.06));
-    text-shadow:0 1px 1px rgba(0,0,0,.55);
+    color:#d3b571;
+    padding:15px 30px;
+    background:rgba(4,13,34,.5);
+    border:1px solid rgba(199,162,74,.34);
+    clip-path:polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
     box-shadow:
-      inset 0 1px 0 rgba(214,182,110,.14),
-      inset 0 -1px 0 rgba(0,0,0,.28);
+      inset 0 2px 6px rgba(0,0,0,.5),
+      inset 0 -1px 1px rgba(214,182,110,.1);
+    text-shadow:0 1px 1px rgba(0,0,0,.55);
+    cursor:pointer;
     transition:
       color .6s cubic-bezier(.22,.61,.36,1),
       border-color .6s,
@@ -562,49 +575,65 @@
     -webkit-tap-highlight-color:transparent;
   }
 
-  /* The plaque is small on purpose; the tap does not have to be. This grows
-     the hit box out to 44px tall and a little wider without touching a
-     pixel of what is drawn. */
-  .room-cta-btn::after{
-    content:'';
-    position:absolute;
-    inset:min(0px, calc((44px - var(--room-cta-h)) / -2)) -8px;
+  .room-cta-label{
+    display:block;
+    text-align:center;
   }
 
-  .room-cta-btn--left { --room-cta-x:var(--room-cta-left-x);  --room-cta-y:var(--room-cta-left-y); }
-  .room-cta-btn--right{ --room-cta-x:var(--room-cta-right-x); --room-cta-y:var(--room-cta-right-y); }
+  /* The two side rules. They are the enhancement, not the design: the
+     plaque above is complete standing still, which is the state a touch
+     screen mostly sees. Each is a hairline of light that grows out of
+     nothing to a little under two thirds of the plate, and each is drawn
+     with its ends faded so it reads as light on the wall rather than as a
+     drawn line. They take no pointer events and are outside the plate's
+     clip, which is the whole reason they are hung off the slot. */
+  .room-cta-rule{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    width:1px;
+    height:0;
+    background:linear-gradient(180deg, transparent, #cda343, transparent);
+    transition:height .6s cubic-bezier(.22,.61,.36,1);
+    pointer-events:none;
+  }
+  .room-cta-rule--start{ left:calc(-1px - var(--room-cta-rule-gap)); }
+  .room-cta-rule--end  { right:calc(-1px - var(--room-cta-rule-gap)); }
 
-  /* Lit — the same four properties whichever way it is reached: a pointer
-     over it, a finger on it, or the keyboard. Hover is asked for rather
-     than assumed, because on a touch screen it latches after the finger
-     has gone and the plate would be left lit behind it. */
+  /* Lit — the same four properties whichever way the plate is reached: a
+     pointer over it, a finger on it, or the keyboard. Hover is asked for
+     rather than assumed, because on a touch screen it latches after the
+     finger has gone and the plate would be left lit behind it. The rules
+     grow on the same three, off the plate's own state rather than the
+     slot's, so nothing lights up from a stray hover on the rules.
+
+     There is no focus ring on top of this: an outline is painted outside
+     the border box and the clip-path would cut it away. The colour change
+     and the two rules arriving are the focus indication. */
   .room-cta-btn:active,
   .room-cta-btn:focus-visible{
     color:#f4e4b2;
-    border-color:rgba(220,190,120,.9);
-    background:linear-gradient(177deg, rgba(214,182,110,.16), rgba(199,162,74,.04) 55%, rgba(0,0,0,.05));
+    border-color:rgba(216,186,116,.62);
+    background:rgba(7,18,44,.55);
     box-shadow:
-      inset 0 1px 0 rgba(220,190,120,.22),
-      inset 0 -1px 0 rgba(0,0,0,.25),
-      0 0 20px rgba(199,162,74,.22);
+      inset 0 2px 6px rgba(0,0,0,.42),
+      inset 0 -1px 1px rgba(216,186,116,.24),
+      0 0 18px rgba(199,162,74,.16);
   }
+  .room-cta-btn:active ~ .room-cta-rule,
+  .room-cta-btn:focus-visible ~ .room-cta-rule{ height:64%; }
+
   @media (hover:hover){
     .room-cta-btn:hover{
       color:#f4e4b2;
-      border-color:rgba(220,190,120,.9);
-      background:linear-gradient(177deg, rgba(214,182,110,.16), rgba(199,162,74,.04) 55%, rgba(0,0,0,.05));
+      border-color:rgba(216,186,116,.62);
+      background:rgba(7,18,44,.55);
       box-shadow:
-        inset 0 1px 0 rgba(220,190,120,.22),
-        inset 0 -1px 0 rgba(0,0,0,.25),
-        0 0 20px rgba(199,162,74,.22);
+        inset 0 2px 6px rgba(0,0,0,.42),
+        inset 0 -1px 1px rgba(216,186,116,.24),
+        0 0 18px rgba(199,162,74,.16);
     }
-  }
-
-  /* Only for the keyboard, and on top of the lit state above: the ring is
-     what says which of the two is about to be opened. */
-  .room-cta-btn:focus-visible{
-    outline:1px solid rgba(220,190,120,.9);
-    outline-offset:3px;
+    .room-cta-btn:hover ~ .room-cta-rule{ height:64%; }
   }
 
   @media (prefers-reduced-motion:reduce){
@@ -659,10 +688,18 @@
      the only things here that need swapping for the real links. -->
 <div id="room-cta">
   <div class="room-cta-fit">
-    <a class="room-cta-btn room-cta-btn--left" lang="he" dir="rtl"
-       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה<br>באתר</a>
-    <a class="room-cta-btn room-cta-btn--right" lang="he" dir="rtl"
-       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה<br>באתר</a>
+    <div class="room-cta-slot room-cta-slot--left">
+      <a class="room-cta-btn" lang="he" dir="rtl"
+         href="https://example.com" target="_blank" rel="noopener noreferrer"><span class="room-cta-label">לצפייה<br>באתר</span></a>
+      <i class="room-cta-rule room-cta-rule--start"></i>
+      <i class="room-cta-rule room-cta-rule--end"></i>
+    </div>
+    <div class="room-cta-slot room-cta-slot--right">
+      <a class="room-cta-btn" lang="he" dir="rtl"
+         href="https://example.com" target="_blank" rel="noopener noreferrer"><span class="room-cta-label">לצפייה<br>באתר</span></a>
+      <i class="room-cta-rule room-cta-rule--start"></i>
+      <i class="room-cta-rule room-cta-rule--end"></i>
+    </div>
   </div>
 </div>
 
