@@ -19,11 +19,13 @@
          100  the viewport itself (never scrolls past)
          750  scrub travel — drives all 119 frames at the vault's original
               rate of ~6.36vh per frame, so the two shots read as one move
-         200  hero dwell — the light sweep plays itself when the scroll
-              first arrives down here, on GSAP's clock rather than the
-              scroll's. The page is pinned for the first ~2.2s of that, so
-              the reveal cannot be scrolled past; the rest of the band is
-              simply room to rest on while the words read
+         200  hero dwell — the light sweep plays itself whenever the scroll
+              arrives down here, on GSAP's clock rather than the scroll's,
+              and again on every later arrival from either end. On the
+              first of them the page is pinned for ~2.2s so the reveal
+              cannot be scrolled past; after that it re-plays without
+              taking the scroll. The rest of the band is simply room to
+              rest on while the words read
           80  end hold — the finished hero rests here
           80  treasure cross-fade — the treasure room is dissolved in over
               this, taking the rotunda and the words down with it
@@ -122,8 +124,10 @@
        It rests at 0 — past the lit end, and so the finished state — so that
        any path which gets the block on screen without the script driving it
        shows lit, readable text rather than dark text. The script writes the
-       dark end into it before the block can ever be seen, and takes the
-       declaration back off once the sweep is over. */
+       dark end into it before the block can ever be seen, and owns it from
+       then on: the sweep is re-run on every arrival at the rotunda, so this
+       value is rewound and played forward again rather than being handed
+       back to the stylesheet at the end. */
     --sweep:0;
   }
   .hero-l1{ --lit:#ecc47a; }                        /* warm gold, every word */
@@ -434,8 +438,7 @@
 <script src="vendor/gsap/gsap.min.js"></script>
 
 <script>
-/* The hero reveal is played once, on its own clock — and the page is held
-   still while it plays.
+/* The hero reveal is played, not scrubbed — on every arrival at the rotunda.
 
    The reveal this replaces was scrubbed: it wrote opacity, transform and
    blur onto every word on every paint, straight from the scroll position.
@@ -446,39 +449,58 @@
    half-written, blurred, with no further event ever coming to finish them.
 
    So position is no longer something the text is a function of. It is read
-   as one bit — has the scroll arrived at the rotunda, or left it — and the
-   reveal between those two states runs start to finish on GSAP's clock. A
-   missed or early scroll sample can at worst flip that bit a frame late,
-   and the sweep then still plays whole.
+   as one bit — is the page standing in the rotunda, or is it not — and the
+   sweep runs start to finish on GSAP's clock each time that bit goes true.
+   A missed or early scroll sample can at worst flip it a frame late, and
+   the sweep then still plays whole.
 
-   It plays exactly once per page load. Coming back up the track runs
-   nothing backwards and re-arms nothing: leaving hides the block, arriving
-   again shows it, already lit. There is no second reveal to be caught
-   half-way through — the residue class of bug this exists to end — and no
-   second pin.
+   Nothing here is ever run backwards. Leaving hides the block; arriving
+   rewinds the sweep to unlit and plays it forward again, whichever end the
+   page arrived from — down out of the entry clip, or up out of the treasure
+   room. A reveal caught half-way through by a reversal is not resumed or
+   reversed, it is simply restarted from nothing by the next arrival, so
+   there is no half-finished state for a fast back-and-forth to jam on.
+   Hiding is atomic by construction, too: one autoAlpha write on #hero-type,
+   a single property on a single element, takes the whole block off screen
+   whatever the sweep left behind it.
+
+   The two bits are latched against a band with a margin around it, not a
+   line: the page has arrived once it is properly inside the rotunda's own
+   stretch of the track and has left only once it is properly outside. The
+   gap between those two is what stops a scroll resting on the boundary, or
+   a rubber-band overshoot, from firing the reveal over and over.
 
    And because a fast scroller would otherwise fly straight past the
-   rotunda, the arrival takes the scroll with it: the page is pinned for the
-   length of the sweep plus a short hold, then let go. That pin is taken
-   once, never re-armed, and has a fuse on it — see hold(). */
+   rotunda, the FIRST arrival takes the scroll with it: the page is pinned
+   for the length of the sweep plus a short hold, then let go. Only the
+   first — a pin that came back every time somebody scrolled up and down
+   would stop being a courtesy and start being a cage. Later arrivals re-run
+   the sweep and leave the scroll alone. */
 (function () {
   'use strict';
 
-  // In the scrubber's units: p is exactly 1.0 the moment the frames finish
-  // and the rotunda holds still, so that is the arrival. Departure is ~20vh
-  // of travel back into the pull-out — about three frames of visible camera
-  // motion — so the two thresholds cannot chatter against each other when
-  // a scroll sits right on the boundary, and the vanish is masked by the
-  // camera already moving.
-  var ENTER_AT   = 1;
-  var EXIT_BELOW = 1 - 20 / 750;
+  /* ---- the rotunda's stretch of the track, in vh of scroll travel ----
 
-  // The pin is only ever taken while the rotunda is the picture on screen.
-  // The treasure room starts dissolving in at 1030vh of travel; a first
-  // arrival below this — a restored scroll position, say — gets the
-  // finished text with no sweep and no pin, rather than the page held
-  // still on somebody else's cross-fade.
-  var LOCK_BELOW = 1010 / 750;
+     Same units as the ledger in the stylesheet: the frames finish at 750vh
+     and the rotunda is simply held from there, the treasure room starts
+     dissolving over it at 1030vh, and the track ends at 1130vh.
+
+     ARRIVE is that held stretch exactly — its lower end is the frame the
+     entry clip settles on, its upper end the last position where the
+     rotunda is still the whole picture. LEAVE is the same band with a
+     margin: 30vh further back into the pull-out, where the camera is
+     visibly moving again, and 50vh further into the cross-fade, by which
+     point the treasure room is two thirds of the way up and taking the
+     words with it.
+
+     Everything between the two is a dead zone that holds whatever the last
+     answer was. Re-arming therefore costs a real gesture — a third of a
+     screen at the near end — rather than the wobble at the end of a fling. */
+  var SCRUB_VH     = 750;    // p is exactly 1.0 at 750vh; see the scrubber
+  var ARRIVE_FROM  = 750;
+  var ARRIVE_TO    = 1030;
+  var LEAVE_BELOW  = 720;
+  var LEAVE_ABOVE  = 1080;
 
   var SWEEP   = 1.05;   // the band crosses both English lines
   var ARROW   = 0.45;   // the Hebrew line fades in behind it — 1.5s in total
@@ -494,8 +516,8 @@
   var arrow = wrap && wrap.querySelector('.hero-arrow');
 
   var lastP  = 0;       // latest position the scrubber handed over
-  var shown  = false;   // is the block on screen?
-  var played = false;   // the sweep has run — it does not run a second time
+  var inside = false;   // the latched bit: is the page standing in the rotunda?
+  var pinned = false;   // the pin has been spent — it is a first-arrival thing
   var tl     = null;    // built below; settle() is inert until it exists
 
   // The scrubber captures window.NetoraHero synchronously when it starts,
@@ -520,17 +542,21 @@
   }
 
   // Unlit, and the Hebrew line down, before the block can ever be seen:
-  // #hero-type is hidden by the stylesheet until settle() shows it.
-  writeBand();
-  gsap.set(arrow, { autoAlpha: 0 });
+  // #hero-type is hidden by the stylesheet until arrive() shows it.
+  function rewind() {
+    band.at = DARK;
+    writeBand();
+    gsap.set(arrow, { autoAlpha: 0 });
+  }
+  rewind();
 
   tl = gsap.timeline({
     paused: true,
     onComplete: function () {
-      lit();
       // The hold is deliberately outside the timeline: what it delays is
-      // letting go of the page, not anything on screen.
-      gsap.delayedCall(HOLD, release);
+      // letting go of the page, not anything on screen. Only asked for when
+      // there is a pin to let go of — a re-play does not schedule anything.
+      if (locked) gsap.delayedCall(HOLD, release);
     }
   });
 
@@ -545,16 +571,6 @@
       duration: ARROW,
       ease: 'power1.out'
     }, SWEEP);
-
-  // The finished state is no inline state at all: the band and the Hebrew
-  // line drop back onto the stylesheet, which declares exactly this — lit,
-  // and visible — for the long dwell that follows. Also the whole of the
-  // reveal for a page that arrives past the window it belongs in.
-  function lit() {
-    tl.progress(1, true);
-    wrap.style.removeProperty('--sweep');
-    gsap.set(arrow, { clearProps: 'opacity,visibility' });
-  }
 
   /* ---------- the pin ---------- */
 
@@ -638,49 +654,60 @@
     window.removeEventListener('scroll',    repin);
     window.removeEventListener('resize',            restake);
     window.removeEventListener('orientationchange', restake);
-    // The exit branch has been declining to act for as long as this was up.
-    // Ask it once now, rather than leaving the block's fate to whenever the
-    // next paint happens to come — the scrubber's rAF chain retires 700ms
-    // after the last movement, and a pinned page has not moved.
+    // depart() has been declining to act for as long as this was up. Ask it
+    // once now, rather than leaving the block's fate to whenever the next
+    // paint happens to come — the scrubber's rAF chain retires 700ms after
+    // the last movement, and a pinned page has not moved.
     settle();
   }
 
   /* ---------- arrival and departure ---------- */
 
+  function arrive() {
+    inside = true;
+    gsap.killTweensOf(wrap);            // a hide still fading is cancelled, not raced
+    gsap.set(wrap, { autoAlpha: 1 });
+
+    // Unlit again in the same JS turn as the un-hide, so there is no frame
+    // in between for the previous reveal's finished text to flash through —
+    // and play(0) then renders that same time zero and runs it forward.
+    // Written here as well as by the timeline because "reset to unlit" is
+    // the thing being asked for, not a side effect of a seek.
+    rewind();
+    tl.play(0);
+
+    if (!pinned) {
+      pinned = true;                    // latched before the call: once per load
+      hold();
+    }
+  }
+
+  function depart() {
+    inside = false;
+    // The timeline is left to finish where nobody can see it rather than
+    // paused mid-flight: there is then no partly-rendered reveal for the
+    // next arrival to have to reason about, only one that starts at zero.
+    gsap.to(wrap, {
+      autoAlpha: 0,
+      duration: 0.18,
+      ease: 'power1.out',
+      overwrite: 'auto'
+    });
+  }
+
   function settle() {
     if (!tl) return;
 
-    if (!shown && lastP >= ENTER_AT) {
-      shown = true;
-      gsap.killTweensOf(wrap);            // a hide still fading is cancelled, not raced
-      gsap.set(wrap, { autoAlpha: 1 });
+    var at = lastP * SCRUB_VH;          // where the page is, in vh of travel
 
-      if (!played) {
-        played = true;                    // latched before either branch: once, whatever happens
-        if (lastP < LOCK_BELOW) {
-          hold();
-          // play(0) renders time zero — the block fully unlit — in the same
-          // JS turn as the un-hide above, so there is no frame in between
-          // for the finished text to flash through.
-          tl.play(0);
-        } else {
-          lit();
-        }
-      }
-      // Already played: the block comes back exactly as it was left — lit.
-      // Nothing replays, nothing re-pins.
-    } else if (shown && !locked && lastP < EXIT_BELOW) {
+    if (!inside) {
+      if (at >= ARRIVE_FROM && at <= ARRIVE_TO) arrive();
+    } else if (!locked && (at < LEAVE_BELOW || at > LEAVE_ABOVE)) {
       // Not while pinned. p is scrollY over a track measured in vh, so a
       // viewport that changes under the pin — a rotation — can move p
       // without the page having moved at all, and the one thing that must
       // not happen during the reveal is the reveal being hidden.
-      shown = false;
-      gsap.to(wrap, {
-        autoAlpha: 0,
-        duration: 0.18,
-        ease: 'power1.out',
-        overwrite: 'auto'
-      });
+      depart();
     }
   }
 })();
