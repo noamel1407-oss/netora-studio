@@ -409,14 +409,25 @@
     /* The plate, sized as one piece: everything below is in em of this, so
        changing this one length scales the whole plaque and leaves its
        proportions alone. It grows with the picture between a phone and a
-       big desktop and then stops, so the plate is a small plaque inside the
-       panel at every size rather than a bar across it — on a 1440 screen
-       the panel is 209px wide and the plate is 103px of it, with the blue
-       around it doing the work. */
+       big desktop and then stops.
+
+       The label is set on two lines — לצפייה over באתר — which is what
+       makes the plate a plaque rather than a bar: the widest line is a bit
+       over half the one-line label, so the plate is 64px across on a 1440
+       screen where the panel is 209px, and the blue around it does the
+       rest. Narrow matters on a phone as well as on the eye: cover crops
+       the panels there, and a plate this size is nearly the width of what
+       is left of one. */
     --room-cta-fs:   clamp(11px, .78vw, 15px);
-    --room-cta-w:    9.2em;    /* em of the plate's own size, set above */
-    --room-cta-h:    2.7em;
-    --room-cta-edge: .75rem;   /* the closest it may come to the screen edge */
+    /* Both in em of the size above, and both chosen from the label rather
+       than picked: the long line is 3.9em wide and the two lines together
+       are 3em tall, so these leave a shade under .9em of air on all four
+       sides. Even spacing is what makes it read as a plaque rather than a
+       box with words jammed in it, and it is why the two are not equal —
+       the plate is a little wider than it is tall because the text is. */
+    --room-cta-w:    5.7em;
+    --room-cta-h:    4.8em;
+    --room-cta-edge: .5rem;    /* the closest it may come to the screen edge */
 
     --room-ar: 0.562799;       /* 941/1672 — the still's own aspect ratio */
   }
@@ -511,6 +522,11 @@
     justify-content:center;
     width:var(--room-cta-w);
     height:var(--room-cta-h);
+    /* The label breaks between its two words and both lines are centred on
+       the plate's axis. 1.5 rather than the face's own leading: the two
+       lines have to look placed, not wrapped. */
+    text-align:center;
+    line-height:1.5;
 
     /* Written by the script, from the room's opacity. 0 until then, so a
        page where nothing runs shows no buttons over no room. Deliberately
@@ -644,9 +660,9 @@
 <div id="room-cta">
   <div class="room-cta-fit">
     <a class="room-cta-btn room-cta-btn--left" lang="he" dir="rtl"
-       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה באתר</a>
+       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה<br>באתר</a>
     <a class="room-cta-btn room-cta-btn--right" lang="he" dir="rtl"
-       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה באתר</a>
+       href="https://example.com" target="_blank" rel="noopener noreferrer">לצפייה<br>באתר</a>
   </div>
 </div>
 
