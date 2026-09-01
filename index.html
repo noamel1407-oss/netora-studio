@@ -29,16 +29,23 @@
           80  end hold — the finished hero rests here
           80  treasure cross-fade — the treasure room is dissolved in over
               this, taking the rotunda and the words down with it
-          20  landing — the room, fully opaque, simply held. Deliberately
-              left empty: the portfolio picks up from it
+          20  landing — the room, fully opaque, simply held. A beat, so the
+              room is seen standing still before the camera takes it
+         260  the push — the camera travels forward into the room, in to
+              the arch. Scrubbed, like the frames; see the module under
+              the cross-fade
+          40  the arch, held. Deliberately left empty: the form picks up
+              from it
        ------
-        1230
+        1530
 
-       Everything above the cross-fade keeps the number it always had. The
-       track grew underneath it, not around it: the frames still finish at
-       750vh of travel and the treasure fade still starts at 1030vh. */
+       Everything above the push keeps the number it always had. The track
+       grew underneath it, not around it: the frames still finish at 750vh
+       of travel, the treasure fade still starts at 1030vh, and the only
+       other number that had to move is SCRUB in the scrubber, which is
+       this list's 750 over the travel below it. */
     background:#000;
-    height:1230vh;
+    height:1530vh;
     overscroll-behavior-y:none;
   }
 
@@ -343,25 +350,24 @@
 
   /* ---------- treasure room ---------- */
 
-  /* The last picture, laid over everything: the rotunda, the hero words and
-     the load hairline. Anchored to the viewport, like #stage below it, so
-     the two pictures sit in register and the dissolve is a straight blend
-     of one into the other rather than a slide.
+  /* Three boxes, nested, each with one job.
 
-     object-fit:cover is the same framing rule blit() applies to the frames:
-     fill the viewport, keep the ratio, centre whatever overflows. So the
-     9:16 still fills a wide screen without bars and without stretching.
+       #room        the screen. It clips, and it is what --room-vw/--room-vh
+                    measure — so the plates' screen-edge clamp still knows
+                    where the screen is after the frame inside it has moved.
+       #room-frame  the PICTURE: the rectangle object-fit:cover would paint
+                    the still into, worked out from the still's own ratio.
+                    A percentage inside it is a percentage of the picture at
+                    every viewport ratio, and the camera push is therefore
+                    one transform on one element.
+       #treasure    the still itself, filling the frame measured for it.
 
-     Opacity is written from the scroll position by script, on every paint.
-     It starts at 0 here, which is also where it stays if the script never
-     runs or the picture never arrives. No transition: the opacity is the
-     scroll position, not a reaction to it.
-
-     Deliberately no background colour. cover cannot leave a bar to fill, so
-     one would only ever show while the picture is still on its way — and a
-     black rectangle rising over the rotunda is a worse failure than the
-     rotunda simply staying. */
-  #treasure{
+     That middle box used to be computed twice — once inside object-fit:cover
+     for the picture, and again in CSS for the plates, which needed picture
+     coordinates to sit on their panels. It is computed once now, with both
+     of them inside it, which is the whole reason the push can carry them
+     together rather than having to move them in step. */
+  #room{
     position:fixed;
     /* One pixel of overshoot on every side, rather than inset:0. At inset:0
        the layer's own edge does not reliably reach the last device pixel
@@ -378,10 +384,107 @@
     z-index:3;
     width:calc(100% + 2px);
     height:calc(100% + 2px);
+
+    /* The frame inside overflows this box by construction — that is what
+       covering means — and the push makes it overflow much further.
+       object-fit:cover used to do this clipping implicitly; now it is
+       asked for. */
+    overflow:hidden;
+
+    /* Nothing in the room takes a tap except the two plates, and only for
+       as long as they are live. The rest of it stays scrollable. */
+    pointer-events:none;
+
+    /* This box's own size, in units the children can do arithmetic with.
+       Container units rather than vw/vh so they measure THIS element: on a
+       phone with a retracting URL bar the viewport and the fixed layer are
+       not the same box, and it is this one the picture fills. The vw/vh
+       pair is the fallback where container units are unavailable — off by
+       whatever the URL bar is worth, which is a nudge, not a break. */
+    --room-vw:100vw;
+    --room-vh:100vh;
+  }
+  @supports (width:1cqw){
+    #room{
+      container-type:size;
+      --room-vw:100cqw;
+      --room-vh:100cqh;
+    }
+  }
+
+  /* The picture's own box: exactly the rectangle object-fit:cover paints
+     the still into, overflow and all. max() picks the side that has to
+     overflow in order to cover, and the top/left pair with the -50% that
+     opens the transform below centres it.
+
+     That centring has to be the transform's, not `inset:0; margin:auto`:
+     auto margins only centre a box that FITS its containing block, and this
+     one never does — covering means overflowing on one axis by definition.
+     Over-constrained, the auto margins collapse to zero against the start
+     edge instead, which lays the picture along the left of the screen and
+     carries the arch a fifth of a screen off centre with it. The -50% pair
+     is not over-constrainable: it is half of this box, whatever this box
+     turned out to be.
+
+     The push writes two plain numbers here and the transform composes them:
+
+       --room-push        0..1, the eased progress of the move
+       --room-push-scale  the scale itself — pow(S_END, that progress), so
+                          the zoom rate is constant rather than the scale
+
+     Both default to the identity, so a page where the module never runs
+     shows the room exactly as it was before there was a push at all.
+
+     The translate is the whole correction the move needs. The arch is not
+     quite at the middle of the picture — 49.7% across, 51.6% down — so
+     scaling about it leaves it sitting slightly low on the screen: 13px on
+     a phone, 35px on a desktop. `50% - the arch` is that offset exactly, as
+     a percentage of this box, which is what translate() resolves against.
+     Ramped by the same progress, it arrives as the zoom does. */
+  #room-frame{
+    position:absolute;
+    top:50%;
+    left:50%;
+    width: max(var(--room-vw), calc(var(--room-vh) * var(--room-ar)));
+    height:max(var(--room-vh), calc(var(--room-vw) / var(--room-ar)));
+
+    /* Read right to left, which is the order they apply in: scale about the
+       arch, nudge the arch to the middle of the screen, then take the box
+       back by half itself to finish the centring top/left began. The nudge
+       sits inside the -50% and outside the scale, so it stays the handful
+       of pixels it was measured to be instead of being multiplied by the
+       zoom — and every percentage here resolves against this box's own
+       untransformed size, which is what makes them commensurable at all. */
+    transform-origin:var(--room-arch-x) var(--room-arch-y);
+    transform:
+      translate(-50%, -50%)
+      translate(
+        calc((50% - var(--room-arch-x)) * var(--room-push, 0)),
+        calc((50% - var(--room-arch-y)) * var(--room-push, 0)))
+      scale(var(--room-push-scale, 1));
+    will-change:transform;
+  }
+
+  /* The still. The frame it fills already has its ratio, so cover here is
+     the identity — it stays as the statement of intent, and as the thing
+     that would still be right if the frame were ever a hair off.
+
+     Opacity is written from the scroll position by script, on every paint.
+     It starts at 0 here, which is also where it stays if the script never
+     runs or the picture never arrives. No transition: the opacity is the
+     scroll position, not a reaction to it.
+
+     Deliberately no background colour. cover cannot leave a bar to fill, so
+     one would only ever show while the picture is still on its way — and a
+     black rectangle rising over the rotunda is a worse failure than the
+     rotunda simply staying. */
+  #treasure{
+    display:block;
+    width:100%;
+    height:100%;
     object-fit:cover;
     object-position:center;
     opacity:0;
-    pointer-events:none;
     will-change:opacity;
   }
 
@@ -433,14 +536,28 @@
     --room-cta-glow:     0 0 18px rgba(199,162,74,.16);
 
     --room-ar: 0.666667;       /* 1024/1536 — the still's own aspect ratio */
+
+    /* The arch, in the picture's own coordinates. Read off the still: it
+       runs 45.2-54.1% across and 43.0-60.2% down, so this pair is its
+       middle. It is what the camera push scales about, and the only thing
+       to re-measure if the still is ever replaced. */
+    --room-arch-x: 49.7%;
+    --room-arch-y: 51.6%;
   }
 
-  /* The layer the plates live on: the same box as #treasure, laid over it.
-     It holds no state of its own. The script under the cross-fade writes
-     the room's opacity into --room-cta-fade and turns data-live on and off
-     with it, so the buttons arrive with the room, leave with it, and are
-     tappable for exactly as long as it is on screen — the whole of the
-     dissolve included, where the picture is up but not yet opaque.
+  /* The layer the plates live on: the picture's box rather than the
+     screen's, so that they ride the push with the picture instead of
+     having to be moved in step with it. It is inside #room-frame, so
+     inset:0 IS the still, and the percentages below are picture
+     coordinates without any arithmetic of their own — which is what they
+     always meant, and what the box this replaces existed to reconstruct.
+
+     It holds no state. The module under the cross-fade writes the room's
+     opacity into --room-cta-fade and turns data-live on and off with it,
+     so the buttons arrive with the room and leave with it. They also leave
+     the moment the camera starts moving, and that is not a decoration:
+     scale() carries them off the screen long before the push is over, and
+     data-live is what takes their tab stop away with them.
 
      The fade is carried on a custom property the buttons read rather than
      as opacity on this element, because an ancestor at less than full
@@ -448,52 +565,12 @@
      behind it, and anything sampling that backdrop would stop working
      until the dissolve had finished. */
   #room-cta{
-    position:fixed;
-    /* Including the one pixel of overshoot, so the cover crop worked out
-       below is the crop the picture is actually showing. */
-    inset:-1px;
-    z-index:4;
-    width:calc(100% + 2px);
-    height:calc(100% + 2px);
-
-    /* The layer itself never takes a tap — only the two buttons do, and
-       only while they are live. The rest of the room stays scrollable. */
-    pointer-events:none;
+    position:absolute;
+    inset:0;
     visibility:hidden;
-
-    /* This box's own size, in units the children can do arithmetic with.
-       Container units rather than vw/vh so they measure THIS element: on a
-       phone with a retracting URL bar the viewport and the fixed layer are
-       not the same box, and it is this one the picture fills. The vw/vh
-       pair is the fallback where container units are unavailable — off by
-       whatever the URL bar is worth, which is a nudge, not a break. */
-    --room-vw:100vw;
-    --room-vh:100vh;
-  }
-  @supports (width:1cqw){
-    #room-cta{
-      container-type:size;
-      --room-vw:100cqw;
-      --room-vh:100cqh;
-    }
   }
   #room-cta[data-live]{ visibility:visible; }
   #room-cta[data-live] .room-cta-btn{ pointer-events:auto; }
-
-  /* The picture's own box: exactly the rectangle object-fit:cover paints
-     the still into, overflow and all. max() picks the side that has to
-     overflow in order to cover, and the centring does the rest — the same
-     framing rule the image and blit() both follow. So a percentage inside
-     this box is a percentage of the STILL at every viewport ratio, which is
-     what keeps a plate on its panel as the crop changes under it. */
-  .room-cta-fit{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    width:max(var(--room-vw), calc(var(--room-vh) * var(--room-ar)));
-    height:max(var(--room-vh), calc(var(--room-vw) / var(--room-ar)));
-  }
 
   /* The plate. Style, face and behaviour are as they were on the centred
      row; only where it sits and how big it is have changed.
@@ -667,13 +744,22 @@
 
   @media (prefers-reduced-motion:reduce){
     #load{ transition:none; }
-    /* The reveal is deliberately NOT reduced here, and this time there is
-       nothing in it to reduce: the sweep moves no pixels. It is a colour
-       boundary travelling along the x axis and an opacity fade on the
-       Hebrew line — no transform, no parallax, no zoom, and nothing that
-       tracks the scroll. That is not the class of motion this setting
-       exists to temper, and the reveal is the only thing announcing the
-       hero, so it has to read the same either way. */
+    /* The reveal is deliberately NOT reduced here, and there is nothing in
+       it to reduce: the sweep moves no pixels. It is a colour boundary
+       travelling along the x axis and an opacity fade on the Hebrew line —
+       no transform, no parallax and nothing that tracks the scroll. That is
+       not the class of motion this setting exists to temper, and the reveal
+       is the only thing announcing the hero, so it has to read the same
+       either way.
+
+       The camera push is the other case entirely, and it is the first thing
+       in this file that is: a scrubbed zoom of several multiples, tied to
+       the scroll, filling the screen. It IS what the setting is for. It is
+       reduced in script rather than here, because what it has to become is
+       not "no transform" — that would strand the room at the wide framing
+       the rest of the track has already left behind — but the same move
+       with no travel in it: the end of the push, cut to at the position the
+       push would have started from. See the module under the cross-fade. */
   }
 </style>
 </head>
@@ -703,31 +789,39 @@
   </div>
 </div>
 
-<!-- Decorative, and above the hero it dissolves over, so it is hidden from
-     assistive tech: there is nothing here the words below have not said.
-     Low fetch priority so it queues behind the frames — nothing needs it
-     until 1030vh of scrolling have gone by. -->
-<img id="treasure" src="images/treasure-room.jpeg" alt="" aria-hidden="true"
-     decoding="async" fetchpriority="low">
+<!-- The room. #room is the screen, #room-frame is the picture, and both
+     the still and the two plates are inside the frame — so the camera push
+     is one transform on one element and everything painted on the picture
+     travels with it. See the stylesheet above for the three boxes.
 
-<!-- The two ways out of the room, laid over it and nothing else: one
-     plate centred on each of the blue side panels. Where they sit is entirely in the
-     stylesheet above; when they are live is entirely in the module below
-     the cross-fade. Placeholder destinations for now — the two hrefs are
-     the only things here that need swapping for the real links. -->
-<div id="room-cta">
-  <div class="room-cta-fit">
-    <div class="room-cta-slot room-cta-slot--left">
-      <a class="room-cta-btn" lang="he" dir="rtl"
-         href="https://example.com" target="_blank" rel="noopener noreferrer"><span class="room-cta-label">לצפייה<br>באתר</span></a>
-      <i class="room-cta-rule room-cta-rule--start"></i>
-      <i class="room-cta-rule room-cta-rule--end"></i>
-    </div>
-    <div class="room-cta-slot room-cta-slot--right">
-      <a class="room-cta-btn" lang="he" dir="rtl"
-         href="https://example.com" target="_blank" rel="noopener noreferrer"><span class="room-cta-label">לצפייה<br>באתר</span></a>
-      <i class="room-cta-rule room-cta-rule--start"></i>
-      <i class="room-cta-rule room-cta-rule--end"></i>
+     The picture is decorative, and above the hero it dissolves over, so it
+     is hidden from assistive tech: there is nothing in it the words below
+     have not said. Low fetch priority so it queues behind the frames —
+     nothing needs it until 1030vh of scrolling have gone by. -->
+<div id="room">
+  <div id="room-frame">
+    <img id="treasure" src="images/treasure-room.jpeg" alt="" aria-hidden="true"
+         decoding="async" fetchpriority="low">
+
+    <!-- The two ways out of the room, laid over it and nothing else: one
+         plate centred on each of the blue side panels. Where they sit is
+         entirely in the stylesheet above; when they are live is entirely in
+         the module below the cross-fade. Placeholder destinations for now —
+         the two hrefs are the only things here that need swapping for the
+         real links. -->
+    <div id="room-cta">
+      <div class="room-cta-slot room-cta-slot--left">
+        <a class="room-cta-btn" lang="he" dir="rtl"
+           href="https://example.com" target="_blank" rel="noopener noreferrer"><span class="room-cta-label">לצפייה<br>באתר</span></a>
+        <i class="room-cta-rule room-cta-rule--start"></i>
+        <i class="room-cta-rule room-cta-rule--end"></i>
+      </div>
+      <div class="room-cta-slot room-cta-slot--right">
+        <a class="room-cta-btn" lang="he" dir="rtl"
+           href="https://example.com" target="_blank" rel="noopener noreferrer"><span class="room-cta-label">לצפייה<br>באתר</span></a>
+        <i class="room-cta-rule room-cta-rule--start"></i>
+        <i class="room-cta-rule room-cta-rule--end"></i>
+      </div>
     </div>
   </div>
 </div>
@@ -1100,6 +1194,163 @@
 </script>
 
 <script>
+/* The camera pushes forward into the room.
+
+   Same contract as the cross-fade above it, and for the same reason: the
+   move is a pure function of scroll position, evaluated on every paint,
+   with no timer, no transition and no latched state. Scrolling back up
+   evaluates the same arithmetic at a smaller number and the camera pulls
+   back out. Stopping mid-way leaves it where the scroll left it.
+
+   It rides on the fade rather than being called by the scrubber, because
+   the scrubber captured window.NetoraHero and window.NetoraTreasure when it
+   started and only ever calls those two — a third contract object would sit
+   there and never be asked. So this decorates the fade's .at, which the
+   scrubber looks up on every paint, exactly as the plates below decorate
+   it in turn. Order matters and is the document's: the opacity is written
+   first, then this, then the plates read both.
+
+   Everything it writes is two numbers on one element. The geometry that
+   turns them into a move — what the scale is about, and the nudge that
+   centres the arch — is in the stylesheet with the rest of the geometry. */
+(function () {
+  'use strict';
+
+  /* ---- the knobs, in vh of scroll travel ----
+
+     Same units as the ledger in the stylesheet: the frames finish at 750vh,
+     the cross-fade closes at 1110vh, and the room is then held still for a
+     beat so it is seen before it is taken. The push has that beat behind it
+     and closes 40vh short of the bottom, leaving the arch held for the
+     landing. */
+  var PUSH_START_VH = 1130;
+  var PUSH_LEN_VH   = 260;
+
+  // p is exactly 1.0 at 750vh; see the scrubber.
+  var SCRUB_VH = 750;
+
+  /* ---- how far in the camera is allowed to go ----
+
+     S_MAX is a sharpness ceiling, not a taste one. The still is 1024x1536
+     and cover already paints it a little over 1:1 on a phone, so every
+     further multiple is invented detail. Measured on the delivered file:
+     past about 3x the arch's gold frame goes soft, and the lettering
+     painted inside it — which is picture, not type — starts to read as the
+     noise it actually is. Do not raise this without a larger still behind
+     it.
+
+     FRAME is what keeps the arch framed rather than cropped. The fit below
+     is the scale at which the arch exactly touches the nearer pair of
+     screen edges; four fifths of it leaves the arch dominant with air
+     around it. Which of the two binds depends on the crop, and that is the
+     point of having both: on a phone the picture is already nearly 1:1 so
+     S_MAX binds and the arch ends up about half the screen's height; on a
+     desktop the crop is showing a wide slice of a tall picture, the arch
+     would fill the height at 2.4x, and FRAME stops it at 1.9x. One number
+     could not have served both. */
+  var S_MAX = 3;
+  var FRAME = 0.8;
+
+  /* The arch as a fraction of the picture, read off the still: 45.2-54.1%
+     across, 43.0-60.2% down. Only the size is needed here — where it is
+     lives in the stylesheet, as --room-arch-x/y, because it is the
+     transform's origin. */
+  var ARCH_W = 0.089;
+  var ARCH_H = 0.173;
+
+  var room  = document.getElementById('room');
+  var frame = document.getElementById('room-frame');
+  var fade  = window.NetoraTreasure;
+  if (!room || !frame || !fade) return;
+
+  var reduce = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : null;
+
+  var sEnd  = 1;      // where the push ends, worked out by measure()
+  var last  = -1;     // last progress written
+  var seen  = 0;      // last p handed over
+  var stale = true;   // the geometry changed under the last write
+
+  /* The frame's box is the picture's box, so the arch's size on screen is
+     its fraction of that box — and the scale that makes it just fit is the
+     screen over that. Measured rather than derived from vw/vh: the frame is
+     what the picture actually fills, and on a phone with a retracting URL
+     bar that is not the same rectangle as the viewport. */
+  function measure() {
+    var fw = frame.offsetWidth;
+    var fh = frame.offsetHeight;
+    var rw = room.clientWidth;
+    var rh = room.clientHeight;
+    if (!fw || !fh || !rw || !rh) return;
+
+    var fit = Math.min(rw / (ARCH_W * fw), rh / (ARCH_H * fh));
+    var s   = Math.min(S_MAX, FRAME * fit);
+
+    // Never below 1: a push that pulled back out of the room would be a
+    // worse answer than no push at all.
+    sEnd  = s > 1 ? s : 1;
+    stale = true;
+  }
+
+  function ease(t) {                              // smoothstep, as the fade
+    return t * t * (3 - 2 * t);
+  }
+
+  function write(p) {
+    seen = p;
+
+    var t = (p * SCRUB_VH - PUSH_START_VH) / PUSH_LEN_VH;
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+
+    /* Reduced motion: the same move with the travel taken out of it. Not
+       "no transform" — that would strand the room at the wide framing the
+       track has already left behind, and the arch is where the page is
+       going. So the push becomes a cut: nothing at all until the position
+       it would have started from, the finished framing from there on. The
+       cross-fade above is untouched, because a dissolve moves no pixels. */
+    if (reduce && reduce.matches) t = t > 0 ? 1 : 0;
+
+    t = Math.round(t * 1000) / 1000;
+    if (t === last && !stale) return;
+    last  = t;
+    stale = false;
+
+    var k = ease(t);
+
+    /* The scale is exponential in the eased progress rather than linear in
+       it. What the eye reads as the speed of a push is the rate of change
+       of the LOG of the scale — the same doubling takes the same time
+       whether it is 1x to 2x or 2x to 4x — so a scale that climbs linearly
+       reads as a camera slowing to a halt. pow() holds the rate constant
+       and lets the easing, not the arithmetic, decide the shape. */
+    frame.style.setProperty('--room-push', String(Math.round(k * 1000) / 1000));
+    frame.style.setProperty('--room-push-scale',
+      String(Math.round(Math.pow(sEnd, k) * 10000) / 10000));
+  }
+
+  var at = fade.at;
+  fade.at = function (p) { at(p); write(p); };
+
+  /* The scrubber's own resize handler repaints, which runs the chain above
+     and picks the new sEnd up — but this has to have measured before it
+     does, and listeners fire in the order they were added. This module is
+     above the scrubber in the document, so this one is too. */
+  window.addEventListener('resize', measure);
+  window.addEventListener('orientationchange', measure);
+
+  // Turning the setting on mid-page has to land without waiting for the
+  // next scroll: the paint loop retires 700ms after the last movement, and
+  // a page nobody is scrolling would keep the move it was told to drop.
+  if (reduce && reduce.addEventListener) {
+    reduce.addEventListener('change', function () { stale = true; write(seen); });
+  }
+
+  measure();
+})();
+</script>
+
+<script>
 /* When the two glass plates are live.
 
    The buttons have no scroll state of their own, and no second copy of the
@@ -1115,10 +1366,20 @@
    only thing that knows where the cross-fade starts or how long it runs.
    Move them and the buttons follow, because there is nothing here to move.
 
+   The push added a second thing to read. Once the camera starts moving the
+   plates are gone, and gone has to mean out of the tab order and not merely
+   invisible: scale() carries them off the screen well before the push ends,
+   and a plate left live out there is a link nobody can see that a keyboard
+   can still reach. The room's opacity says nothing about this — it is 1
+   through the whole push — so the push's own progress is read too, from
+   where it writes it, and the two are multiplied.
+
    It decorates .at rather than being called by it, for the same reason: the
    scrubber looks that property up on this object on every paint, so
    wrapping it runs this immediately after every opacity the fade writes,
-   without the fade having been told the buttons exist. */
+   without the fade having been told the buttons exist. It wraps AFTER the
+   push does, so that by the time this reads, both numbers are this paint's
+   rather than the last one's. */
 (function () {
   'use strict';
 
@@ -1129,10 +1390,18 @@
      properly there. It is the only number in this module. */
   var LIVE_ABOVE = 0;
 
-  var room = document.getElementById('treasure');
-  var cta  = document.getElementById('room-cta');
-  var fade = window.NetoraTreasure;
-  if (!room || !cta || !fade) return;
+  /* And how much of the push they survive. The plates belong to the room
+     standing still; the first hint of travel is the room becoming something
+     else, and they should be off the screen before the viewer can wonder
+     whether they are still aimed at a panel. An eighth of the push is about
+     30vh of scrolling, which is a gesture, not a flicker. */
+  var OUT_BY = 0.12;
+
+  var room  = document.getElementById('treasure');
+  var cta   = document.getElementById('room-cta');
+  var frame = document.getElementById('room-frame');
+  var fade  = window.NetoraTreasure;
+  if (!room || !cta || !frame || !fade) return;
 
   var last = -1;                                  // last value passed on
 
@@ -1140,14 +1409,23 @@
     // '' until the fade's first write, and a string after it.
     var op = parseFloat(room.style.opacity);
     if (!(op > 0)) op = 0;
-    if (op === last) return;
-    last = op;
 
-    cta.style.setProperty('--room-cta-fade', String(op));
+    // Likewise '' until the push's first write. Absent counts as no push,
+    // which is what a page whose push module never ran is looking at.
+    var moved = parseFloat(frame.style.getPropertyValue('--room-push'));
+    if (!(moved > 0)) moved = 0;
 
-    // Live for as long as the room is on screen — the whole dissolve
-    // included, where the picture is up but still coming through.
-    if (op > LIVE_ABOVE) cta.setAttribute('data-live', '');
+    var v = moved >= OUT_BY ? 0 : op * (1 - moved / OUT_BY);
+    v = Math.round(v * 1000) / 1000;
+    if (v === last) return;
+    last = v;
+
+    cta.style.setProperty('--room-cta-fade', String(v));
+
+    // Live for as long as the room is on screen and still — the whole of
+    // the dissolve included, where the picture is up but still coming
+    // through, and none of the push, where it is going away again.
+    if (v > LIVE_ABOVE) cta.setAttribute('data-live', '');
     else cta.removeAttribute('data-live');
   }
 
@@ -1183,12 +1461,13 @@
   var VAULT = 48;
   var COUNT = 119;
 
-  // Fraction of the scroll track that drives frames. 750 of the 1130vh of
-  // travel scrubs; the rest carries the hero reveal, its end hold and the
-  // treasure cross-fade. The frames still finish at exactly 750vh, as they
-  // always have — only the denominator moved, because the track below them
-  // grew.
-  var SCRUB = 750 / 1130;
+  // Fraction of the scroll track that drives frames. 750 of the 1430vh of
+  // travel scrubs; the rest carries the hero reveal, its end hold, the
+  // treasure cross-fade and the camera push into the arch. The frames still
+  // finish at exactly 750vh, as they always have — only the denominator
+  // moved, because the track below them grew. It is the one number in this
+  // file that has to be touched when it does.
+  var SCRUB = 750 / 1430;
 
   var stage  = document.getElementById('stage');
   var canvas = document.getElementById('frame');
